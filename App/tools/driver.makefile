@@ -885,35 +885,42 @@ CPPSNCFLAGS1 += $(filter-out ${OP_SYS_INCLUDE_CPPFLAGS} ,${CPPFLAGS}) ${CPPSNCFL
 CPPSNCFLAGS1 += -I $(dir $(SNC))../../include
 SNCFLAGS += -r
 
+
+# 1) ESS uses 3.15.5 as the minimal EPICS BASE, so we don't need to check 3.13,
+# 2) We also need -c option in $(COMPILE.c) in order to compile generated source file properly
+# 3) SNC (2.1.21) should use -o, because without them, snc returns $(*F).i.c instead of $(*F).c
+#    With the EPICS standard building rule, -o and mv are used.
+# 
+# Tuesday, November 28 15:59:37 CET 2017, Jeong Han Lee
+
 %$(OBJ) %_snl.dbd: %.st
 	@echo "Preprocessing $(<F)"
 	$(RM) $(*F).i
 	$(CPP) ${CPPSNCFLAGS1} $< > $(*F).i
-	@echo "Converting $(*F).i"
+	@echo "Converting $(*F).i to $(*F).c"
 	$(RM) $@
-	$(SNC) $(TARGET_SNCFLAGS) $(SNCFLAGS) $(*F).i
+	$(SNC) $(TARGET_SNCFLAGS) $(SNCFLAGS) $(*F).i -o $(*F).c.tmp
+	@mv $(*F).c.tmp $(*F).c
 	@echo "Compiling $(*F).c"
 	$(RM) $@
-	$(COMPILE.c) ${SNC_CFLAGS} $(*F).c
-ifneq (${EPICS_BASETYPE},3.13)
+	$(COMPILE.c) -c ${SNC_CFLAGS} $(*F).c 
 	@echo "Building $(*F)_snl.dbd"
 	awk -F [\(\)]  '/epicsExportRegistrar/ { print "registrar (" $$2 ")"}' $(*F).c > $(*F)_snl.dbd
-endif
 
 %$(OBJ) %_snl.dbd: %.stt
 	@echo "Preprocessing $(<F)"
 	$(RM) $(*F).i
 	$(CPP) ${CPPSNCFLAGS1} $< > $(*F).i
-	@echo "Converting $(*F).i"
+	@echo "Converting $(*F).i to $(*F).c"
 	$(RM) $@
-	$(SNC) $(TARGET_SNCFLAGS) $(SNCFLAGS) $(*F).i
+	$(SNC) $(TARGET_SNCFLAGS) $(SNCFLAGS) $(*F).i -o $(*F).c.tmp
+	@mv $(*F).c.tmp $(*F).c
 	@echo "Compiling $(*F).c"
 	$(RM) $@
-	$(COMPILE.c) ${SNC_CFLAGS} $(*F).c
-ifneq (${EPICS_BASETYPE},3.13)
+	$(COMPILE.c) -c ${SNC_CFLAGS} $(*F).c
 	@echo "Building $(*F)_snl.dbd"
 	awk -F [\(\)]  '/epicsExportRegistrar/ { print "registrar(" $$2 ")"}' $(*F).c > $(*F)_snl.dbd
-endif
+
 
 # Create GPIB code from *.gt file.
 %.c %.dbd %.list: %.gt
@@ -984,17 +991,17 @@ END {for (name in func_missing) if (!func_found[name]) { \
 	print "epicsExportAddress(" type ", " name ");"} \
     }
 endef
- 
+
 CORELIB = ${CORELIB_${OS_CLASS}}
 CORELIB_vxWorks = $(firstword $(wildcard ${EPICS_BASE}/bin/${T_A}/softIoc.munch ${EPICS_BASE}/bin/${T_A}/iocCoreLibrary.munch))
- 
+
 ifeq (${OS_CLASS},vxWorks)
 SHARED_LIBRARIES=NO
 endif
 LSUFFIX_YES=$(SHRLIB_SUFFIX)
 LSUFFIX_NO=$(LIB_SUFFIX)
 LSUFFIX=$(LSUFFIX_$(SHARED_LIBRARIES))
- 
+
 ${EXPORTFILE}: $(filter-out $(basename ${EXPORTFILE})$(OBJ),${LIBOBJS})
 	$(RM) $@
 	$(NM) $^ ${BASELIBS:%=${EPICS_BASE}/lib/${T_A}/${LIB_PREFIX}%$(LSUFFIX)} ${CORELIB} | awk '$(makexportfile)' > $@
@@ -1004,14 +1011,14 @@ ${DEPFILE}: ${LIBOBJS} $(USERMAKEFILE)
 	@echo "Collecting dependencies"
 	$(RM) $@
 	@echo "# Generated file. Do not edit." > $@
-	# Check dependencies on other module headers.
+# Check dependencies on other module headers.
 	cat *.d 2>/dev/null | sed 's/ /\n/g' | sed -n 's%${EPICS_MODULES}/*\([^/]*\)/\([0-9]*\.[0-9]*\)\.[0-9]*/.*%\1 \2%p;s%$(EPICS_MODULES)/*\([^/]*\)/\([^/]*\)/.*%\1 \2%p'| sort -u >> $@
 ifneq ($(strip ${REQ}),)
-	# Manully added dependencies: ${REQ}
+# Manully added dependencies: ${REQ}
 	@$(foreach m,${REQ},echo "$m $(or ${$m_VERSION},$(and $(wildcard ${EPICS_MODULES}/$m),$(error REQUIRED module $m has no numbered version. Set $m_VERSION)),$(warning REQUIRED module $m not found for ${T_A}.))" >> $@;)
 endif
 ifdef OLD_INCLUDE
-	# Check dependencies on old style driver headers.
+# Check dependencies on old style driver headers.
 	@${MAKEHOME}/getPrerequisites.tcl -dep ${OLD_INCLUDE} | grep -vw -e ${PRJ} -e ^$$ >> $@ && echo "Warning: dependency on old style driver"; true;
 endif
 
