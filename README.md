@@ -1,3 +1,20 @@
+
+# ESS customized require originated from PSI
+
+The following files are touched:
+
+* require.c
+* driver.makefile
+
+And ESS doesn't use iocsh, we have the indepdent iocsh.bash, which is in https://github.com/icshwi/e3-require
+
+
+
+
+# Original README
+
+
+```
 require "<module>" [,"<version>"] [,"<macro1>=<value2>, <macro2>=<value2>"]
  ioc shell function
  Loads a module library and its dbd file (if not yet done).
@@ -51,5 +68,5 @@ require "<module>" [,"<version>"] [,"<macro1>=<value2>, <macro2>=<value2>"]
    The variables MODULE and TEMPLATES get overwritten for each module.
    They always refer to the last require call, even if the module was already loaded.
    The variable EPICS_DB_INCLUDE_PATH is used by dbLoadRecords and dbLoadDatabase.
-   
+   ```
  
