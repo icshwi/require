@@ -29,6 +29,7 @@
 #include <osiFileName.h>
 #include <epicsVersion.h>
 
+
 #ifdef BASE_VERSION
 #define EPICS_3_13
 
@@ -55,6 +56,7 @@ epicsShareFunc int epicsShareAPI iocshCmd(const char *cmd);
 #endif
 
 #include "require.h"
+
 
 int requireDebug;
 
@@ -220,27 +222,39 @@ int requireDebug;
 
 #endif
 
+
+
 #define LIBDIR "lib" OSI_PATH_SEPARATOR
 #define TEMPLATEDIR "db"
- 
-#define TOSTR(s) TOSTR2(s)
-#define TOSTR2(s) #s
-const char epicsRelease[] = TOSTR(EPICS_VERSION)"."TOSTR(EPICS_REVISION)"."TOSTR(EPICS_MODIFICATION);
-const char epicsBasetype[] = TOSTR(EPICS_VERSION)"."TOSTR(EPICS_REVISION);
 
-#ifndef T_A
-#error T_A not defined: Compile with USR_CFLAGS += -DT_A=${T_A}
-#endif
-const char targetArch[] = TOSTR(T_A);
+
 
 #ifndef OS_CLASS
 #error OS_CLASS not defined: Try to compile with USR_CFLAGS += -DOS_CLASS='"${OS_CLASS}"'
 #endif
+
 const char osClass[] = OS_CLASS;
 
 /* loadlib (library)
 Find a loadable library by name and load it.
 */
+
+
+char epicsRelease[80];
+char epicsBasetype[80];
+char *targetArch;
+
+void set_require_env()
+{
+  char* epics_version_major  = getenv("EPICS_VERSION_MAJOR");
+  char* epics_version_middle = getenv("EPICS_VERSION_MIDDLE");
+  char* epics_version_minor  = getenv("EPICS_VERSION_MINOR");
+
+  sprintf(epicsRelease, "%s.%s.%s", epics_version_major, epics_version_middle, epics_version_minor);
+  sprintf(epicsBasetype, "%s.%s", epics_version_major, epics_version_middle);
+  targetArch = getenv("EPICS_HOST_ARCH");
+  return;
+}
 
 static HMODULE loadlib(const char* libname)
 {
@@ -1000,14 +1014,19 @@ int require(const char* module, const char* version, const char* args)
     char* versionstr;
     static int firstTime = 1;
 
+
     if (firstTime)
     {
         firstTime = 0;
-        putenvprintf("T_A=%s", targetArch);
-        putenvprintf("EPICS_HOST_ARCH=%s", targetArch);
-        putenvprintf("EPICS_RELEASE=%s", epicsRelease);
-        putenvprintf("EPICS_BASETYPE=%s", epicsBasetype);
-        putenvprintf("OS_CLASS=%s", osClass);
+	
+	set_require_env();
+	
+	putenvprintf("T_A=%s",             targetArch);
+	putenvprintf("EPICS_HOST_ARCH=%s", targetArch);
+        putenvprintf("EPICS_RELEASE=%s",   epicsRelease);
+        putenvprintf("EPICS_BASETYPE=%s",  epicsBasetype);
+        putenvprintf("OS_CLASS=%s",        osClass);
+    
     }
 
     if (module == NULL)
@@ -1192,439 +1211,457 @@ static int handleDependencies(const char* module, char* depfilename)
     return 0;
 }
 
-static int require_priv(const char* module, const char* version, const char* args,
-    const char* versionstr  /* "-<version>" or "" (for old style only */ )
+static int 
+require_priv(const char* module,
+	     const char* version,
+	     const char* args,
+	     const char* versionstr  /* "-<version>" or "" (for old style only */
+	     )
 {
-    int status;
-    const char* loaded = NULL;
-    const char* found = NULL;
-    HMODULE libhandle;
-    int ifexists = 0;
-    const char* driverpath;
-    const char* dirname;
-    const char *end;
+  
+  int status;
+  int ifexists = 0;
+  int releasediroffs;
+  int libdiroffs;
+  int extoffs;
+  
+  HMODULE libhandle;
 
-    int releasediroffs;
-    int libdiroffs;
-    int extoffs;
-    char* founddir = NULL;
-    char* symbolname;
-    char filename[NAME_MAX];
+  const char* loaded = NULL;
+  const char* found = NULL;
+  const char* driverpath;
+  const char* dirname;
+  const char *end;
+  char* founddir = NULL;
+  char* symbolname;
+  char filename[NAME_MAX];
     
-    int someVersionFound = 0;
-    int someArchFound = 0;
+  int someVersionFound = 0;
+  int someArchFound = 0;
     
-    static char* globalTemplates = NULL;
+  static char* globalTemplates = NULL;
 
-    if (requireDebug)
-        printf("require: module=\"%s\" version=\"%s\" args=\"%s\"\n", module, version, args);
+  if (requireDebug)
+    printf("require: module=\"%s\" version=\"%s\" args=\"%s\"\n", module, version, args);
 
 #if defined __GNUC__ && __GNUC__ < 3
-    #define TRY_FILE(offs, args...) \
-        (snprintf(filename + offs, sizeof(filename) - offs, args) && fileExists(filename))
+#define TRY_FILE(offs, args...)						\
+  (snprintf(filename + offs, sizeof(filename) - offs, args) && fileExists(filename))
 
-    #define TRY_NONEMPTY_FILE(offs, args...) \
-        (snprintf(filename + offs, sizeof(filename) - offs, args) && fileNotEmpty(filename))
+#define TRY_NONEMPTY_FILE(offs, args...)				\
+  (snprintf(filename + offs, sizeof(filename) - offs, args) && fileNotEmpty(filename))
 #else
-    #define TRY_FILE(offs, ...) \
-        (snprintf(filename + offs, sizeof(filename) - offs, __VA_ARGS__) && fileExists(filename))
+#define TRY_FILE(offs, ...)						\
+  (snprintf(filename + offs, sizeof(filename) - offs, __VA_ARGS__) && fileExists(filename))
 
-    #define TRY_NONEMPTY_FILE(offs, ...) \
-        (snprintf(filename + offs, sizeof(filename) - offs, __VA_ARGS__) && fileNotEmpty(filename))
+#define TRY_NONEMPTY_FILE(offs, ...)					\
+  (snprintf(filename + offs, sizeof(filename) - offs, __VA_ARGS__) && fileNotEmpty(filename))
 #endif
 
 #if defined (_WIN32)
-    /* enable %n in printf */
-    _set_printf_count_output(1);
+  /* enable %n in printf */
+  _set_printf_count_output(1);
 #endif
 
-    driverpath = getenv("EPICS_DRIVER_PATH");
-    if (!globalTemplates)
+  driverpath = getenv("EPICS_DRIVER_PATH");
+  if (!globalTemplates)
     {
-        char *t = getenv("TEMPLATES");
-        if (t) globalTemplates = strdup(t);
+      char *t = getenv("TEMPLATES");
+      if (t) globalTemplates = strdup(t);
     }
     
-    if (driverpath == NULL) driverpath = ".";
-    if (requireDebug)
-        printf("require: searchpath=%s\n", driverpath);
+  if (driverpath == NULL) driverpath = ".";
+  if (requireDebug)
+    printf("require: searchpath=%s\n", driverpath);
 
-    if (version && strcmp(version,"ifexists") == 0)
+  if (version && strcmp(version,"ifexists") == 0)
     {
-        ifexists = 1;
-        version = NULL;
-        versionstr = "";
+      ifexists = 1;
+      version = NULL;
+      versionstr = "";
     }
 
-    /* check already loaded verion */
-    loaded = getLibVersion(module);
-    if (loaded)
+  /* check already loaded verion */
+  loaded = getLibVersion(module);
+  if (loaded)
     {
-        /* Library already loaded. Check Version. */
-        switch (compareVersions(loaded, version))
+      /* Library already loaded. Check Version. */
+      switch (compareVersions(loaded, version))
         {
-            case TESTVERS:
-                if (version)
-                    printf("Warning: Module %s test version %s already loaded where %s was requested\n",
-                        module, loaded, version);
-            case EXACT:
-            case MATCH:
-                printf ("Module %s version %s already loaded\n", module, loaded);
-                break;
-            default:
-                printf("Conflict between requested %s version %s and already loaded version %s.\n",
-                    module, version, loaded);
-                return -1;
+	case TESTVERS:
+	  if (version)
+	    printf("Warning: Module %s test version %s already loaded where %s was requested\n",
+		   module, loaded, version);
+	case EXACT:
+	case MATCH:
+	  printf ("Module %s version %s already loaded\n", module, loaded);
+	  break;
+	default:
+	  printf("Conflict between requested %s version %s and already loaded version %s.\n",
+		 module, version, loaded);
+	  return -1;
         }
-        dirname = getLibLocation(module);
-        if (dirname[0] == 0) return 0;
-        if (requireDebug)
-            printf("require: library found in %s\n", dirname);
-        snprintf(filename, sizeof(filename), "%s%n", dirname, &releasediroffs);
-        putenvprintf("MODULE=%s", module);
-        pathAdd("SCRIPT_PATH", dirname);
+      dirname = getLibLocation(module);
+      if (dirname[0] == 0) return 0;
+      if (requireDebug)
+	printf("require: library found in %s\n", dirname);
+      snprintf(filename, sizeof(filename), "%s%n", dirname, &releasediroffs);
+      putenvprintf("MODULE=%s", module);
+      pathAdd("SCRIPT_PATH", dirname);
     }
-    else
+  else
     {
-        if (requireDebug)
-            printf("require: no %s version loaded yet\n", module);
+      if (requireDebug)
+	printf("require: no %s version loaded yet\n", module);
 
-        /* Search for module in driverpath */
-        for (dirname = driverpath; dirname != NULL; dirname = end)
+      /* Search for module in driverpath */
+      for (dirname = driverpath; dirname != NULL; dirname = end)
         {
-            /* get one directory from driverpath */
-            int dirlen;
-            int modulediroffs;
-            DIR_HANDLE dir;
-            DIR_ENTRY direntry;
+	  /* get one directory from driverpath */
+	  int dirlen;
+	  int modulediroffs;
+	  DIR_HANDLE dir;
+	  DIR_ENTRY direntry;
 
-            end = strchr(dirname, OSI_PATH_LIST_SEPARATOR[0]);
-            if (end && end[1] == OSI_PATH_SEPARATOR[0] && end[2] == OSI_PATH_SEPARATOR[0])   /* "http://..." and friends */
-                end = strchr(end+2, OSI_PATH_LIST_SEPARATOR[0]);
-            if (end) dirlen = (int)(end++ - dirname);
-            else dirlen = (int)strlen(dirname);
-            if (dirlen == 0) continue; /* ignore empty driverpath elements */
+	  end = strchr(dirname, OSI_PATH_LIST_SEPARATOR[0]);
+	  if (end && end[1] == OSI_PATH_SEPARATOR[0] && end[2] == OSI_PATH_SEPARATOR[0])   /* "http://..." and friends */
+	    end = strchr(end+2, OSI_PATH_LIST_SEPARATOR[0]);
+	  if (end) dirlen = (int)(end++ - dirname);
+	  else dirlen = (int)strlen(dirname);
+	  if (dirlen == 0) continue; /* ignore empty driverpath elements */
 
-            if (requireDebug)
-                printf("require: trying %.*s\n", dirlen, dirname);
+	  if (requireDebug)
+	    printf("require: trying %.*s\n", dirlen, dirname);
 
-            snprintf(filename, sizeof(filename), "%.*s" OSI_PATH_SEPARATOR "%s" OSI_PATH_SEPARATOR "%n", 
-                dirlen, dirname, module, &modulediroffs);
-            dirlen++;
-            /* filename = "<dirname>/[dirlen]<module>/[modulediroffs]" */
+	  snprintf(filename, sizeof(filename), "%.*s" OSI_PATH_SEPARATOR "%s" OSI_PATH_SEPARATOR "%n", 
+		   dirlen, dirname, module, &modulediroffs);
+	  dirlen++;
+	  /* filename = "<dirname>/[dirlen]<module>/[modulediroffs]" */
 
-            /* Does the module directory exist? */
-            IF_OPEN_DIR(filename)
-            {
-                if (requireDebug)
-                    printf("require: found directory %s\n", filename);
+	  /* Does the module directory exist? */
+	  IF_OPEN_DIR(filename)
+	  {
+	    if (requireDebug)
+	      printf("require: found directory %s\n", filename);
                     
-                /* Now look for versions. */
-                START_DIR_LOOP
-                {
-                    char* currentFilename = FILENAME(direntry);
+	    /* Now look for versions. */
+	    START_DIR_LOOP
+	      {
+		char* currentFilename = FILENAME(direntry);
                     
-                    SKIP_NON_DIR(direntry)
-                    if (currentFilename[0] == '.') continue;  /* ignore hidden directories */
+		SKIP_NON_DIR(direntry)
+		  if (currentFilename[0] == '.') continue;  /* ignore hidden directories */
 
-                    someVersionFound = 1;
+		someVersionFound = 1;
 
-                    /* Look for highest matching version. */
-                    if (requireDebug)
-                        printf("require: checking version %s against required %s\n",
-                                currentFilename, version);
+		/* Look for highest matching version. */
+		if (requireDebug)
+		  printf("require: checking version %s against required %s\n",
+			 currentFilename, version);
 
-                    switch ((status = compareVersions(currentFilename, version)))
-                    {
-                        case EXACT: /* exact match found */
-                        case MATCH: /* all given numbers match. */
-                        {
-                            someArchFound = 1;
+		switch ((status = compareVersions(currentFilename, version)))
+		  {
+		  case EXACT: /* exact match found */
+		  case MATCH: /* all given numbers match. */
+		    {
+		      someArchFound = 1;
 
-                            if (requireDebug)
-                                printf("require: %s %s may match %s\n",
-                                    module, currentFilename, version);
+		      if (requireDebug)
+			printf("require: %s %s may match %s\n",
+			       module, currentFilename, version);
 
-                            /* Check if it has our EPICS version and architecture. */
-                            /* Even if it has no library, at least it has a dep file in the lib dir */
+		      /* Check if it has our EPICS version and architecture. */
+		      /* Even if it has no library, at least it has a dep file in the lib dir */
 
-                            /* filename = "<dirname>/[dirlen]<module>/[modulediroffs]" */
-                            if (!TRY_FILE(modulediroffs, "%s" OSI_PATH_SEPARATOR "R%s" OSI_PATH_SEPARATOR LIBDIR "%s" OSI_PATH_SEPARATOR,
-                                currentFilename, epicsRelease, targetArch))
-                            /* filename = "<dirname>/[dirlen]<module>/[modulediroffs]<version>/R<epicsRelease>/lib/<targetArch>/" */
-                            {
-                                if (requireDebug)
-                                    printf("require: %s %s has no support for %s %s\n",
-                                        module, currentFilename, epicsRelease, targetArch);
-                                continue;
-                            }
+		      /* filename = "<dirname>/[dirlen]<module>/[modulediroffs]" */
+		      if (!TRY_FILE(modulediroffs, "%s" OSI_PATH_SEPARATOR "R%s" OSI_PATH_SEPARATOR LIBDIR "%s" OSI_PATH_SEPARATOR,
+				    currentFilename, epicsRelease, targetArch))
+			/* filename = "<dirname>/[dirlen]<module>/[modulediroffs]<version>/R<epicsRelease>/lib/<targetArch>/" */
+			{
+			  if (requireDebug)
+			    printf("require: %s %s has no support for %s %s\n",
+				   module, currentFilename, epicsRelease, targetArch);
+			  continue;
+			}
 
-                            if (status == EXACT)
-                            {
-                                if (requireDebug)
-                                    printf("require: %s %s matches %s exactly\n",
-                                        module, currentFilename, version);
-                                /* We are done. */
-                                end = NULL;
-                                break;
-                            }
+		      if (status == EXACT)
+			{
+			  if (requireDebug)
+			    printf("require: %s %s matches %s exactly\n",
+				   module, currentFilename, version);
+			  /* We are done. */
+			  end = NULL;
+			  break;
+			}
 
-                            /* Is it higher than the one we found before? */
-                            if (found && requireDebug)
-                                printf("require: %s %s support for %s %s found, compare against previously found %s\n",
-                                    module, currentFilename, epicsRelease, targetArch, found);
-                            if (!found || compareVersions(currentFilename, found) == HIGHER)
-                            {
-                                if (requireDebug)
-                                    printf("require: %s %s looks promising\n", module, currentFilename);
-                                break;
-                            }
-                            if (requireDebug)
-                                printf("require: version %s is lower than %s \n", currentFilename, found);
-                            continue;
-                        }
-                        default:
-                        {
-                            if (requireDebug)
-                                printf("require: %s %s does not match %s\n",
-                                    module, currentFilename, version);
-                            continue;
-                        }
-                    }
-                    /* we have found something (EXACT or MATCH) */
-                    free(founddir);
-                    /* filename = "<dirname>/[dirlen]<module>/[modulediroffs]..." */
-                    if (asprintf(&founddir, "%.*s%s", modulediroffs, filename, currentFilename) < 0)
-                        return errno;
-                    /* founddir = "<dirname>/[dirlen]<module>/[modulediroffs]<version>" */
-                    found = founddir + modulediroffs; /* version part in the path */
-                    if (status == EXACT) break;
-                }
-                END_DIR_LOOP
-            }
-            else
+		      /* Is it higher than the one we found before? */
+		      if (found && requireDebug)
+			printf("require: %s %s support for %s %s found, compare against previously found %s\n",
+			       module, currentFilename, epicsRelease, targetArch, found);
+		      if (!found || compareVersions(currentFilename, found) == HIGHER)
+			{
+			  if (requireDebug)
+			    printf("require: %s %s looks promising\n", module, currentFilename);
+			  break;
+			}
+		      if (requireDebug)
+			printf("require: version %s is lower than %s \n", currentFilename, found);
+		      continue;
+		    }
+		  default:
+		    {
+		      if (requireDebug)
+			printf("require: %s %s does not match %s\n",
+			       module, currentFilename, version);
+		      continue;
+		    }
+		  }
+		/* we have found something (EXACT or MATCH) */
+		free(founddir);
+		/* filename = "<dirname>/[dirlen]<module>/[modulediroffs]..." */
+		if (asprintf(&founddir, "%.*s%s", modulediroffs, filename, currentFilename) < 0)
+		  return errno;
+		/* founddir = "<dirname>/[dirlen]<module>/[modulediroffs]<version>" */
+		found = founddir + modulediroffs; /* version part in the path */
+		if (status == EXACT) break;
+	      }
+	    END_DIR_LOOP
+	      }
+	  else
             {
-                /* filename = "<dirname>/[dirlen]<module>/" */
-                if (requireDebug)
-                    printf("require: no %s directory\n", filename);
+	      /* filename = "<dirname>/[dirlen]<module>/" */
+	      if (requireDebug)
+		printf("require: no %s directory\n", filename);
 
-                /* try local/old style module only if no new style candidate has been found */
-                if (!found)
+	      /* try local/old style module only if no new style candidate has been found */
+	      if (!found)
                 {
-                    /* look for dep file */
-                    releasediroffs = libdiroffs = dirlen;
-                    if (TRY_FILE(dirlen, "%s%s.dep", module, versionstr))
+		  /* look for dep file */
+		  releasediroffs = libdiroffs = dirlen;
+		  if (TRY_FILE(dirlen, "%s%s.dep", module, versionstr))
                     /* filename = "<dirname>/[dirlen][releasediroffs][libdiroffs]<module>(-<version>)?.dep" */
                     {
-                        if (requireDebug)
-                            printf("require: found old style %s\n", filename);
-                        printf ("Module %s%s found in %.*s\n", module,
-                            versionstr, dirlen, filename);
-                        goto checkdep;
+		      if (requireDebug)
+			printf("require: found old style %s\n", filename);
+		      printf ("Module %s%s found in %.*s\n", module,
+			      versionstr, dirlen, filename);
+		      goto checkdep;
                     }
 
-                    /* look for library file */
-                    if (TRY_FILE(dirlen, PREFIX "%s" INFIX "%s%n" EXT, module, versionstr, &extoffs)
-                    /* filename = "<dirname>/[dirlen][releasediroffs][libdiroffs]PREFIX<module>INFIX(-<version>)?[extoffs]EXT" */
-                    #ifdef vxWorks
-                        /* try without extension */
-                        || (filename[dirlen + extoffs] = 0, fileExists(filename))
-                    #endif
-                        )
+		  /* look for library file */
+		  if (TRY_FILE(dirlen, PREFIX "%s" INFIX "%s%n" EXT, module, versionstr, &extoffs)
+		      /* filename = "<dirname>/[dirlen][releasediroffs][libdiroffs]PREFIX<module>INFIX(-<version>)?[extoffs]EXT" */
+#ifdef vxWorks
+		      /* try without extension */
+		      || (filename[dirlen + extoffs] = 0, fileExists(filename))
+#endif
+		      )
                     {
-                        if (requireDebug)
-                            printf("require: found old style %s\n", filename);
-                        printf ("Module %s%s found in %.*s\n", module,
-                            versionstr, dirlen, filename);
-                        goto loadlib;
+		      if (requireDebug)
+			printf("require: found old style %s\n", filename);
+		      printf ("Module %s%s found in %.*s\n", module,
+			      versionstr, dirlen, filename);
+		      goto loadlib;
                     }
                 }
             }
-            /* filename = "<dirname>/[dirlen]..." */
-            if (!found && requireDebug)
-                printf("require: no matching version in %.*s\n", dirlen, filename);
+	  /* filename = "<dirname>/[dirlen]..." */
+	  if (!found && requireDebug)
+	    printf("require: no matching version in %.*s\n", dirlen, filename);
         }
 
-        if (!found)
+      if (!found)
         {
-            if (someArchFound)
-                fprintf(stderr, "Module %s%s%s not available for %s\n(but maybe for other EPICS versions or architectures)\n",
+	  if (someArchFound)
+	    fprintf(stderr, "Module %s%s%s not available for %s\n(but maybe for other EPICS versions or architectures)\n",
                     module, version ? " version " : "", version ? version : "", targetArch);
-            else
+	  else
             if (someVersionFound)
-                fprintf(stderr, "Module %s%s%s not available (but other versions are available)\n",
-                    module, version ? " version " : "", version ? version : "");
+	      fprintf(stderr, "Module %s%s%s not available (but other versions are available)\n",
+		      module, version ? " version " : "", version ? version : "");
             else
-                fprintf(stderr, "Module %s%s%s not available\n",
-                    module, version ? " version " : "", version ? version : "");
-            return ifexists ? 0 : -1;
+	      fprintf(stderr, "Module %s%s%s not available\n",
+		      module, version ? " version " : "", version ? version : "");
+	  return ifexists ? 0 : -1;
         }
 
-        versionstr = "";
+      versionstr = "";
 
-        /* founddir = "<dirname>/[dirlen]<module>/<version>" */
-        printf ("Module %s version %s found in %s" OSI_PATH_SEPARATOR "\n", module, found, founddir);
+      /* founddir = "<dirname>/[dirlen]<module>/<version>" */
+      printf ("Module %s version %s found in %s" OSI_PATH_SEPARATOR "\n", module, found, founddir);
 
-        if (requireDebug)
-            printf("require: looking for dependency file\n");
+      if (requireDebug)
+	printf("require: looking for dependency file\n");
 
-        if (!TRY_FILE(0, "%s" OSI_PATH_SEPARATOR "R%s" OSI_PATH_SEPARATOR "%n" LIBDIR "%s" OSI_PATH_SEPARATOR "%n%s.dep",
-            founddir, epicsRelease, &releasediroffs, targetArch, &libdiroffs, module))
+      if (!TRY_FILE(0, "%s" OSI_PATH_SEPARATOR "R%s" OSI_PATH_SEPARATOR "%n" LIBDIR "%s" OSI_PATH_SEPARATOR "%n%s.dep",
+		    founddir, epicsRelease, &releasediroffs, targetArch, &libdiroffs, module))
         /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]/lib/<targetArch>/[libdiroffs]/module.dep" */
         {
-            fprintf(stderr, "Dependency file %s not found\n", filename);
+	  fprintf(stderr, "Dependency file %s not found\n", filename);
         }
-        else
+      else
         {
-checkdep:
-            /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]/lib/<targetArch>/[libdiroffs]/module.dep" */
-            /* or (old)   "<dirname>/[dirlen]][releasediroffs][libdiroffs]<module>(-<version>)?.dep" */
-            if (handleDependencies(module, filename) == -1)
-                return -1;
+	checkdep:
+	  /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]/lib/<targetArch>/[libdiroffs]/module.dep" */
+	  /* or (old)   "<dirname>/[dirlen]][releasediroffs][libdiroffs]<module>(-<version>)?.dep" */
+	  if (handleDependencies(module, filename) == -1)
+	    return -1;
         }
 
-        if (requireDebug)
-            printf("require: looking for library file\n");
+      if (requireDebug)
+	printf("require: looking for library file\n");
 
-        if (!(TRY_FILE(libdiroffs, PREFIX "%s" INFIX "%s%n" EXT, module, versionstr, &extoffs)
-        #ifdef vxWorks
+      if (!(TRY_FILE(libdiroffs, PREFIX "%s" INFIX "%s%n" EXT, module, versionstr, &extoffs)
+#ifdef vxWorks
             /* try without extension */
             || (filename[libdiroffs + extoffs] = 0, fileExists(filename))
-        #endif
+#endif
             ))
         /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]/lib/<targetArch>/[libdiroffs]/PREFIX<module>INFIX[extoffs](EXT)?" */
         /* or  (old)  "<dirname>/[dirlen][releasediroffs][libdiroffs]PREFIX<module>INFIX(-<version>)?[extoffs](EXT)?" */
         {
-            printf("Module %s has no library\n", module);
+	  printf("Module %s has no library\n", module);
         }
-        else
+      else
         {
-loadlib:
-            /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]/lib/<targetArch>/[libdiroffs]/PREFIX<module>INFIX[extoffs]EXT" */
-            /* or  (old)  "<dirname>/[dirlen][releasediroffs][libdiroffs]PREFIX<module>INFIX(-<version>)?[extoffs]EXT" */
-            printf("Loading library %s\n", filename);
-            if ((libhandle = loadlib(filename)) == NULL)
-                return -1;
+	loadlib:
+	  /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]/lib/<targetArch>/[libdiroffs]/PREFIX<module>INFIX[extoffs]EXT" */
+	  /* or  (old)  "<dirname>/[dirlen][releasediroffs][libdiroffs]PREFIX<module>INFIX(-<version>)?[extoffs]EXT" */
+	  printf("Loading library %s\n", filename);
+	  if ((libhandle = loadlib(filename)) == NULL)
+	    return -1;
 
-            /* now check what version we really got (with compiled-in version number) */
-            if (asprintf (&symbolname, "_%sLibRelease", module) < 0)
-                return errno;
+	  /* now check what version we really got (with compiled-in version number) */
+	  if (asprintf (&symbolname, "_%sLibRelease", module) < 0)
+	    return errno;
 
-            found = (const char*) getAddress(libhandle, symbolname);
-            free(symbolname);
-            printf("Loaded %s version %s\n", module, found);
+	  found = (const char*) getAddress(libhandle, symbolname);
+	  free(symbolname);
+	  printf("Loaded %s version %s\n", module, found);
 
-            /* check what we got */
-            if (requireDebug)
-                printf("require: compare requested version %s with loaded version %s\n", version, found);
-            if (compareVersions(found, version) == MISMATCH)
+	  /* check what we got */
+	  if (requireDebug)
+	    printf("require: compare requested version %s with loaded version %s\n", version, found);
+	  if (compareVersions(found, version) == MISMATCH)
             {
-                fprintf(stderr, "Requested %s version %s not available, found only %s.\n",
-                    module, version, found);
-                return -1;
+	      fprintf(stderr, "Requested %s version %s not available, found only %s.\n",
+		      module, version, found);
+	      return -1;
             }
 
-            /* load dbd file */
-            if (TRY_NONEMPTY_FILE(releasediroffs, "dbd" OSI_PATH_SEPARATOR "%s%s.dbd", module, versionstr) ||
-                TRY_NONEMPTY_FILE(releasediroffs, "%s%s.dbd", module, versionstr) ||
-                TRY_NONEMPTY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "dbd" OSI_PATH_SEPARATOR "%s%s.dbd", module, versionstr) ||
-                TRY_NONEMPTY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s%s.dbd", module, versionstr) ||
-                TRY_NONEMPTY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR ".." OSI_PATH_SEPARATOR "dbd" OSI_PATH_SEPARATOR "%s.dbd", module)) /* org EPICSbase */
+	  /* load dbd file */
+	  if (TRY_NONEMPTY_FILE(releasediroffs, "dbd" OSI_PATH_SEPARATOR "%s%s.dbd", module, versionstr) ||
+	      TRY_NONEMPTY_FILE(releasediroffs, "%s%s.dbd", module, versionstr) ||
+	      TRY_NONEMPTY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "dbd" OSI_PATH_SEPARATOR "%s%s.dbd", module, versionstr) ||
+	      TRY_NONEMPTY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s%s.dbd", module, versionstr) ||
+	      TRY_NONEMPTY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR ".." OSI_PATH_SEPARATOR "dbd" OSI_PATH_SEPARATOR "%s.dbd", module)) /* org EPICSbase */
             {
-                printf("Loading dbd file %s\n", filename);
-                if (dbLoadDatabase(filename, NULL, NULL) != 0)
+	      printf("Loading dbd file %s\n", filename);
+	      if (dbLoadDatabase(filename, NULL, NULL) != 0)
                 {
-                    fprintf (stderr, "Error loading %s\n", filename);
-                    return -1;
+		  fprintf (stderr, "Error loading %s\n", filename);
+		  return -1;
                 }
 
-                #ifndef EPICS_3_13
-                /* when dbd is loaded call register function */
-                if (asprintf(&symbolname, "%s_registerRecordDeviceDriver", module) < 0)
-                    return errno;
+#ifndef EPICS_3_13
+	      /* when dbd is loaded call register function */
+	      if (asprintf(&symbolname, "%s_registerRecordDeviceDriver", module) < 0)
+		return errno;
 
-                printf ("Calling function %s\n", symbolname);
-                #ifdef vxWorks
-                {
-                    FUNCPTR f = (FUNCPTR) getAddress(NULL, symbolname);
-                    if (f)
-                        f(pdbbase);
-                    else
-                        fprintf (stderr, "require: can't find %s function\n", symbolname);
-                }        
-                #else /* !vxWorks */
-                iocshCmd(symbolname);
-                #endif /* !vxWorks */
-                free(symbolname);
-                #endif /* !EPICS_3_13 */
+	      printf ("Calling function %s\n", symbolname);
+#ifdef vxWorks
+	      {
+		FUNCPTR f = (FUNCPTR) getAddress(NULL, symbolname);
+		if (f)
+		  f(pdbbase);
+		else
+		  fprintf (stderr, "require: can't find %s function\n", symbolname);
+	      }        
+#else /* !vxWorks */
+	      iocshCmd(symbolname);
+#endif /* !vxWorks */
+	      free(symbolname);
+#endif /* !EPICS_3_13 */
             }
-            else
+	  else
             {
-                /* no dbd file, but that might be OK */
-                printf("%s has no dbd file\n", module);
+	      /* no dbd file, but that might be OK */
+	      printf("%s has no dbd file\n", module);
             }
         }
-        /* register module with path */
-        filename[releasediroffs] = 0;
-        registerModule(module, found, filename);
+      /* register module with path */
+      filename[releasediroffs] = 0;
+      registerModule(module, found, filename);
     }
 
-    status = 0;       
+  status = 0;       
 
-    if (requireDebug)
-        printf("require: looking for template directory\n");
-    /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]..." */
-    if (!((TRY_FILE(releasediroffs, TEMPLATEDIR) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR TEMPLATEDIR)) && setupDbPath(module, filename) == 0))
+  if (requireDebug)
+    printf("require: looking for template directory\n");
+  /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]..." */
+  if (!((TRY_FILE(releasediroffs, TEMPLATEDIR) ||
+	 TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR TEMPLATEDIR)) && setupDbPath(module, filename) == 0))
     {
-        /* if no template directory found, restore TEMPLATES to initial value */
-        char *t;
-        t = getenv("TEMPLATES");
-        if (globalTemplates && (!t || strcmp(globalTemplates, t) != 0))
-            putenvprintf("TEMPLATES=%s", globalTemplates);
+      /* if no template directory found, restore TEMPLATES to initial value */
+      char *t;
+      t = getenv("TEMPLATES");
+      if (globalTemplates && (!t || strcmp(globalTemplates, t) != 0))
+	putenvprintf("TEMPLATES=%s", globalTemplates);
     }
 
-    if (loaded && args == NULL) return 0; /* no need to execute startup script twice if not with new arguments */
+  if (loaded && args == NULL) return 0; /* no need to execute startup script twice if not with new arguments */
 
-    /* load startup script */
-    if (requireDebug)
-        printf("require: looking for startup script\n");
-    /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]db" */
-    if (TRY_FILE(releasediroffs, "%s-%s.cmd", targetArch, epicsRelease) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", targetArch, epicsRelease) ||
-        TRY_FILE(releasediroffs, "%s-%s.cmd", targetArch, epicsBasetype) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", targetArch, epicsBasetype) ||
-        TRY_FILE(releasediroffs, "%s-%s.cmd", osClass, epicsRelease) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", osClass, epicsRelease) ||
-        TRY_FILE(releasediroffs, "%s-%s.cmd", osClass, epicsBasetype) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", osClass, epicsBasetype) ||
-        TRY_FILE(releasediroffs, "startup-%s.cmd", epicsRelease) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "startup-%s.cmd", epicsRelease) ||
-        TRY_FILE(releasediroffs, "startup-%s.cmd", epicsBasetype) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "startup-%s.cmd", epicsBasetype) ||
-        TRY_FILE(releasediroffs, "%s.cmd", targetArch) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s.cmd", targetArch) ||
-        TRY_FILE(releasediroffs, "%s.cmd", osClass) ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s.cmd", osClass) ||
-        TRY_FILE(releasediroffs, "startup.cmd") ||
-        TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "startup.cmd")
-        )
-    {
-        if (args)
-            printf("Executing %s with \"%s\"\n", filename, args);
-        else if (interruptAccept)
-        {
-            printf("Not executing %s after iocInit\n", filename);
-            return 0;
-        }
-        else
-            printf("Executing %s\n", filename);
-        if (runScript(filename, args) != 0)
-            fprintf (stderr, "Error executing %s\n", filename);
-        else
-            printf("Done with %s\n", filename);
-    }
-    return status;
+
+  /* 
+   * Even if it creates nothing, if they cannot find start up script, 
+   * I would like to do silent the calling the startup scripts. 
+   * E3 doesn't need this automatic execute them.
+   * 
+   * Tuesday, October 17 13:51:23 CEST 2017, jhlee
+   */
+
+ // load startup script 
+  //  if (requireDebug)
+  //    printf("require: looking for startup script\n");
+  //   filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]db" 
+
+  
+  /* if (TRY_FILE(releasediroffs, "%s-%s.cmd", targetArch, epicsRelease) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", targetArch, epicsRelease) || */
+  /*     TRY_FILE(releasediroffs, "%s-%s.cmd", targetArch, epicsBasetype) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", targetArch, epicsBasetype) || */
+  /*     TRY_FILE(releasediroffs, "%s-%s.cmd", osClass, epicsRelease) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", osClass, epicsRelease) || */
+  /*     TRY_FILE(releasediroffs, "%s-%s.cmd", osClass, epicsBasetype) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s-%s.cmd", osClass, epicsBasetype) || */
+  /*     TRY_FILE(releasediroffs, "startup-%s.cmd", epicsRelease) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "startup-%s.cmd", epicsRelease) || */
+  /*     TRY_FILE(releasediroffs, "startup-%s.cmd", epicsBasetype) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "startup-%s.cmd", epicsBasetype) || */
+  /*     TRY_FILE(releasediroffs, "%s.cmd", targetArch) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s.cmd", targetArch) || */
+  /*     TRY_FILE(releasediroffs, "%s.cmd", osClass) || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "%s.cmd", osClass) || */
+  /*     TRY_FILE(releasediroffs, "startup.cmd") || */
+  /*     TRY_FILE(releasediroffs, ".." OSI_PATH_SEPARATOR "startup.cmd") */
+  /*     ) */
+  /* { */
+  /*     if (args) */
+  /*         printf("Executing %s with \"%s\"\n", filename, args); */
+  /*     else if (interruptAccept) */
+  /*     { */
+  /*         printf("Not executing %s after iocInit\n", filename); */
+  /*         return 0; */
+  /*     } */
+  /*     else */
+  /*         printf("Executing %s\n", filename); */
+  /*     if (runScript(filename, args) != 0) */
+  /*         fprintf (stderr, "Error executing %s\n", filename); */
+  /*     else */
+  /*         printf("Done with %s\n", filename); */
+  /* } */
+  
+  return status;
 }
 
 #ifndef EPICS_3_13
