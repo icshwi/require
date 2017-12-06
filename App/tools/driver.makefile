@@ -64,14 +64,12 @@ MAKEHOME:=$(dir $(lastword ${MAKEFILE_LIST}))
 # Get the name of the Makefile that included this file.
 USERMAKEFILE:=$(lastword $(filter-out $(lastword ${MAKEFILE_LIST}), ${MAKEFILE_LIST}))
 
-
-
-DEFAULT_EPICS_VERSIONS =
-BUILDCLASSES = 
-EPICS_MODULES = 
-EPICS_LOCATION = 
+# Some configuration:
+DEFAULT_EPICS_VERSIONS = 3.13.9 3.13.10 3.14.8 3.14.12
+BUILDCLASSES = vxWorks
+EPICS_MODULES ?= /ioc/modules
 MODULE_LOCATION = ${EPICS_MODULES}/$(or ${PRJ},$(error PRJ not defined))/$(or ${LIBVERSION},$(error LIBVERSION not defined))
-
+EPICS_LOCATION = /usr/local/epics
 
 DOCUEXT = txt html htm doc pdf ps tex dvi gif jpg png
 DOCUEXT += TXT HTML HTM DOC PDF PS TEX DVI GIF JPG PNG
@@ -164,14 +162,14 @@ MKDIR = mkdir -p -m 775
 clean::
 	$(RMDIR) O.*
 
-#clean.%::
-#	$(RMDIR) $(wildcard O.*${@:clean.%=%}*)
+clean.%::
+	$(RMDIR) $(wildcard O.*${@:clean.%=%}*)
 
 uninstall:
 	$(RMDIR) ${MODULE_LOCATION}
 
-#uninstall.%:
-#	$(RMDIR) $(wildcard ${MODULE_LOCATION}/R*${@:uninstall.%=%}*)
+uninstall.%:
+	$(RMDIR) $(wildcard ${MODULE_LOCATION}/R*${@:uninstall.%=%}*)
 
 help:
 	@echo "usage:"
@@ -459,13 +457,13 @@ O.%:
 
 ifeq ($(shell echo "${LIBVERSION}" | grep -v -E "^[0-9]+\.[0-9]+\.[0-9]+\$$"),)
 install:: build
-	@test ! -d ${MODULE_LOCATION}/lib/${T_A} || \
-        (echo -e "Error: ${MODULE_LOCATION}/lib/${T_A} already exists.\nNote: If you really want to overwrite then uninstall first."; false)
+	@test ! -d ${MODULE_LOCATION}/R${EPICSVERSION}/lib/${T_A} || \
+        (echo -e "Error: ${MODULE_LOCATION}/R${EPICSVERSION}/lib/${T_A} already exists.\nNote: If you really want to overwrite then uninstall first."; false)
 else
 install:: build
-	@test ! -d ${MODULE_LOCATION}/lib/${T_A} || \
-        (echo -e "Warning: Re-installing ${MODULE_LOCATION}/lib/${T_A}"; \
-        $(RMDIR) ${MODULE_LOCATION}/lib/${T_A})
+	@test ! -d ${MODULE_LOCATION}/R${EPICSVERSION}/lib/${T_A} || \
+        (echo -e "Warning: Re-installing ${MODULE_LOCATION}/R${EPICSVERSION}/lib/${T_A}"; \
+        $(RMDIR) ${MODULE_LOCATION}/R${EPICSVERSION}/lib/${T_A})
 endif
 
 install build debug:: O.${EPICSVERSION}_Common O.${EPICSVERSION}_${T_A}
@@ -546,7 +544,7 @@ BUILDRULE=build:
 BASERULES=${EPICS_BASE}/configure/RULES
 endif # 3.14
 
-INSTALL_REV     = ${MODULE_LOCATION}
+INSTALL_REV     = ${MODULE_LOCATION}/R${EPICSVERSION}
 INSTALL_BIN     = ${INSTALL_REV}/bin/$(T_A)
 INSTALL_LIB     = ${INSTALL_REV}/lib/$(T_A)
 INSTALL_INCLUDE = ${INSTALL_REV}/include
