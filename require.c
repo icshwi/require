@@ -30,6 +30,7 @@
 #include <epicsVersion.h>
 
 
+
 #ifdef BASE_VERSION
 #define EPICS_3_13
 
@@ -56,7 +57,6 @@ epicsShareFunc int epicsShareAPI iocshCmd(const char *cmd);
 #endif
 
 #include "require.h"
-
 
 int requireDebug;
 
@@ -455,36 +455,51 @@ static int setupDbPath(const char* module, const char* dbdir)
 
 static int getRecordHandle(const char* namepart, short type, long minsize, DBADDR* paddr)
 {
-    char recordname[PVNAME_STRINGSZ];
-    long dummy, offset;
+  /*
+    #define PVNAME_STRINGSZ 61
+    defined in EPICS_BASE/include/dbDefs.h
+   */
+    char recordname[PVNAME_STRINGSZ] = "";
+    long dummy = 0L;
+    long offset = 0L;
 
-    sprintf(recordname, "%.*s%s", (int)(PVNAME_STRINGSZ-strlen(namepart)-1), getenv("IOC"), namepart);
+    sprintf(recordname, "%.*s%s", (int)(PVNAME_STRINGSZ-strlen(namepart)-1), getenv("REQUIRE_IOC"), namepart);
+    
     if (dbNameToAddr(recordname, paddr) != 0)
-    {
-        fprintf(stderr, "require: record %s not found\n",
-            recordname);
+      {
+        fprintf(stderr,
+		"require:getRecordHandle : record %s not found\n",
+		recordname);
         return -1;
-    }
+      }
     if (paddr->field_type != type)
-    {
-        fprintf(stderr, "require: record %s has wrong type %s instead of %s\n",
-            recordname, pamapdbfType[paddr->field_type].strvalue, pamapdbfType[type].strvalue);
+      {
+        fprintf(stderr,
+		"require:getRecordHandle : record %s has wrong type %s instead of %s\n",
+		recordname,
+		pamapdbfType[paddr->field_type].strvalue,
+		pamapdbfType[type].strvalue);
         return -1;
-    }
+      }
     if (paddr->no_elements < minsize)
-    {
-        fprintf(stderr, "require: record %s has not enough elements: %lu instead of %lu\n",
-            recordname, paddr->no_elements, minsize);
+      {
+        fprintf(stderr,
+		"require:getRecordHandle : record %s has not enough elements: %lu instead of %lu\n",
+		recordname,
+		paddr->no_elements,
+		minsize);
         return -1;
-    }
+      }
     if (paddr->pfield == NULL)
-    {
-        fprintf(stderr, "require: record %s has not yet allocated memory\n",
-            recordname);
+      {
+        fprintf(stderr, "require:getRecordHandle : record %s has not yet allocated memory\n",
+		recordname);
         return -1;
-    }
+      }
+
     /* update array information */
     dbGetRset(paddr)->get_array_info(paddr, &dummy, &offset);
+    
     return 0;
 }
 
@@ -627,8 +642,8 @@ void registerModule(const char* module, const char* version, const char* locatio
     mylocation = getenv("require_DIR");
     if (mylocation == NULL) return;
     if (asprintf(&abslocation, "%s" OSI_PATH_SEPARATOR "db" OSI_PATH_SEPARATOR "moduleversion.template", mylocation) < 0) return;
-    if (asprintf(&argstring, "IOC=%.30s, MODULE=%.24s, VERSION=%.39s, MODULE_COUNT=%lu, BUFFER_SIZE=%lu",
-        getenv("IOC"), module, version, moduleCount,
+    if (asprintf(&argstring, "REQUIRE_IOC=%.30s, MODULE=%.24s, VERSION=%.39s, MODULE_COUNT=%lu, BUFFER_SIZE=%lu",
+        getenv("REQUIRE_IOC"), module, version, moduleCount,
         moduleListBufferSize+maxModuleNameLength*moduleCount) < 0) return;
     printf("Loading module info records for %s\n", module);
     dbLoadRecords(abslocation, argstring);
@@ -1373,10 +1388,12 @@ require_priv(const char* module,
 		      /* Check if it has our EPICS version and architecture. */
 		      /* Even if it has no library, at least it has a dep file in the lib dir */
 
+
+		      /* Step 1 : library file location */
 		      /* filename = "<dirname>/[dirlen]<module>/[modulediroffs]" */
-		      if (!TRY_FILE(modulediroffs, "%s" OSI_PATH_SEPARATOR "R%s" OSI_PATH_SEPARATOR LIBDIR "%s" OSI_PATH_SEPARATOR,
-				    currentFilename, epicsRelease, targetArch))
-			/* filename = "<dirname>/[dirlen]<module>/[modulediroffs]<version>/R<epicsRelease>/lib/<targetArch>/" */
+		      if (!TRY_FILE(modulediroffs, "%s" OSI_PATH_SEPARATOR LIBDIR "%s" OSI_PATH_SEPARATOR,
+				    currentFilename, targetArch))
+			/* filename = "<dirname>/[dirlen]<module>/[modulediroffs]<version>/lib/<targetArch>/" */
 			{
 			  if (requireDebug)
 			    printf("require: %s %s has no support for %s %s\n",
@@ -1490,11 +1507,14 @@ require_priv(const char* module,
       /* founddir = "<dirname>/[dirlen]<module>/<version>" */
       printf ("Module %s version %s found in %s" OSI_PATH_SEPARATOR "\n", module, found, founddir);
 
+
+
+      /* Step 2 : Looking for  Dep file */
       if (requireDebug)
 	printf("require: looking for dependency file\n");
 
-      if (!TRY_FILE(0, "%s" OSI_PATH_SEPARATOR "R%s" OSI_PATH_SEPARATOR "%n" LIBDIR "%s" OSI_PATH_SEPARATOR "%n%s.dep",
-		    founddir, epicsRelease, &releasediroffs, targetArch, &libdiroffs, module))
+      if (!TRY_FILE(0, "%s"  OSI_PATH_SEPARATOR "%n" LIBDIR "%s" OSI_PATH_SEPARATOR "%n%s.dep",
+		    founddir, &releasediroffs, targetArch, &libdiroffs, module))
         /* filename = "<dirname>/[dirlen]<module>/<version>/R<epicsRelease>/[releasediroffs]/lib/<targetArch>/[libdiroffs]/module.dep" */
         {
 	  fprintf(stderr, "Dependency file %s not found\n", filename);

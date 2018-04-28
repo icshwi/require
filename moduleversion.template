@@ -1,4 +1,4 @@
-record (waveform, "$(IOC):MODULES")
+record (waveform, "$(REQUIRE_IOC):MODULES")
 {
     field (DESC, "List of loaded modules")
     field (FTVL, "STRING")
@@ -6,7 +6,7 @@ record (waveform, "$(IOC):MODULES")
     field (PINI, "YES")
 }
 
-record (waveform, "$(IOC):VERSIONS")
+record (waveform, "$(REQUIRE_IOC):VERSIONS")
 {
     field (DESC, "Versions of loaded modules")
     field (FTVL, "STRING")
@@ -14,7 +14,7 @@ record (waveform, "$(IOC):VERSIONS")
     field (PINI, "YES")
 }
 
-record (waveform, "$(IOC):MOD_VER")
+record (waveform, "$(REQUIRE_IOC):MOD_VER")
 {
     field (DESC, "List of loaded modules")
     field (FTVL, "CHAR")
@@ -22,7 +22,7 @@ record (waveform, "$(IOC):MOD_VER")
     field (PINI, "YES")
 }
 
-record (stringin, "$(IOC):$(MODULE)_VER")
+record (stringin, "$(REQUIRE_IOC):$(MODULE)_VER")
 {
     field (DESC, "Module $(MODULE) version")
     field (VAL,  "$(VERSION)")
