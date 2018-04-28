@@ -1,0 +1,16 @@
+O.*
+require.Makefile
+core.*
+*~
+test/*
+E3Test*
+*~
+*-dev
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+#*
+.#*
+\#*
+.cvsignore
