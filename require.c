@@ -1210,8 +1210,15 @@ static int handleDependencies(const char* module, char* depfilename)
             while (*end && !isspace((unsigned char)*end)) end++;
 
             /* add + to numerial versions if not yet there */
+	    /*
+	      ESS would like to use the MATCH version only, not HIGHER. 
+	      In order to touch the PSI code mininaly, disable add + from VERSION from Dep file.
+	      At the same time, ESS use the X.X.X instead of X.X.
+	      Wednesday, May  2 00:12:18 CEST 2018, jhlee
+	    */
+	    /*
             if (*(end-1) != '+' && strspn(rversion, "0123456789.") == (size_t)(end-rversion)) *end++ = '+';
-
+	    */
             /* terminate version */
             *end = 0;
         }
