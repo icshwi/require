@@ -1077,7 +1077,7 @@ ${DEPFILE}: ${LIBOBJS} $(USERMAKEFILE)
 	$(RM) $@
 	@echo "# Generated file. Do not edit." > $@
 # Check dependencies on other module headers.
-	cat *.d 2>/dev/null | sed 's/ /\n/g' | sed -n 's%${EPICS_MODULES}/*\([^/]*\)/\([0-9]*\.[0-9]*\)\.[0-9]*/.*%\1 \2%p;s%$(EPICS_MODULES)/*\([^/]*\)/\([^/]*\)/.*%\1 \2%p'| sort -u >> $@
+	cat *.d 2>/dev/null | sed 's/ /\n/g' | sed -n 's%${EPICS_MODULES}/*\([^/]*\)/\([0-9]*\.[0-9]*\.[0-9]*\)/.*%\1 \2%p;s%$(EPICS_MODULES)/*\([^/]*\)/\([^/]*\)/.*%\1 \2%p'| grep -v "include" | sort -u >> $@
 ifneq ($(strip ${REQ}),)
 # Manully added dependencies: ${REQ}
 	@$(foreach m,${REQ},echo "$m $(or ${$m_VERSION},$(and $(wildcard ${EPICS_MODULES}/$m),$(error REQUIRED module $m has no numbered version. Set $m_VERSION)),$(warning REQUIRED module $m not found for ${T_A}.))" >> $@;)
@@ -1110,4 +1110,5 @@ endif # EPICSVERSION defined
 ##                                          in the original driver.makefile way.
 ##                                          Default E3_SEQUENCER_NAME as sequencer, if it is not defined in
 ##                                          CONFIG_MODULE in each module
-##
+## Tuesday, May  1 20:27:31 CEST 2018     : Generate a dependency file with module_name x.x.x instead of x.x
+##                                          add the exclusion for include for require.dep 
