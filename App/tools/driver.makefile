@@ -832,6 +832,10 @@ vpath menu%.dbd ${DBD_PATH}
 
 # Find header files to install.
 vpath %.h $(addprefix ../,$(sort $(dir $(filter-out /%,${HDRS}) ${SRCS}))) $(sort $(dir $(filter /%,${HDRS})))
+vpath %.hpp $(addprefix ../,$(sort $(dir $(filter-out /%,${HDRS}) ${SRCS}))) $(sort $(dir $(filter /%,${HDRS})))
+vpath %.hh $(addprefix ../,$(sort $(dir $(filter-out /%,${HDRS}) ${SRCS}))) $(sort $(dir $(filter /%,${HDRS})))
+vpath %.hxx $(addprefix ../,$(sort $(dir $(filter-out /%,${HDRS}) ${SRCS}))) $(sort $(dir $(filter /%,${HDRS})))
+
 
 PRODUCTS = ${MODULELIB} ${MODULEDBD} ${DEPFILE}
 MODULEINFOS:
@@ -1102,7 +1106,8 @@ endif # EPICSVERSION defined
 ## Tuesday, January 30 14:03:35 CET 2018  : Default snc path (SNC) was changed in order to use E3_SITELIBS_PATH,
 ##                                          at the same time, we also add E3_SITEMODS_PATH, E3_SITEAPPS_PATH also.
 ##                                          They should be configured in E3/CONFIG_EXPORT and E3/CONFIG_E3_MAKEFILE.
-##                                          We also introduce E3_SEQUENCER_NAME also. 
+##                                          We also introduce E3_SEQUENCER_NAME also.
+##
 ## Wednesday, January 31 15:18:33 CET 2018: Add Debug messages in SNC  
 ##
 ## Saturday, February 10 22:42:44 CET 2018: E3_SEQUENCER_VERSION was introduced. If not set, fall back to
@@ -1110,5 +1115,9 @@ endif # EPICSVERSION defined
 ##                                          in the original driver.makefile way.
 ##                                          Default E3_SEQUENCER_NAME as sequencer, if it is not defined in
 ##                                          CONFIG_MODULE in each module
+##
 ## Tuesday, May  1 20:27:31 CEST 2018     : Generate a dependency file with module_name x.x.x instead of x.x
-##                                          add the exclusion for include for require.dep 
+##                                          add the exclusion for include for require.dep
+##
+## Sunday, May  6 22:10:24 CEST 2018      : add %.{hh,hpp,hxx} headers into vpath in order to install them properly
+## 
