@@ -13,6 +13,9 @@ requireSup_DBD += require.dbd
 LIB_SRCS += runScript.c
 requireSup_DBD += runScript.dbd
 
+LIB_SRCS += expr.c
+#requireSup_DBD += expr.dbd
+
 LIB_SRCS += dbLoadTemplate.y
 requireSup_DBD += dbLoadTemplate.dbd
 
@@ -25,7 +28,7 @@ LIB_LIBS += $(EPICS_BASE_IOC_LIBS)
 USR_INCLUDES_Linux=-idirafter ${EPICS_BASE}/include 
 
 # Pass T_A to the code
-USR_CFLAGS += -DT_A=${T_A}
+USR_CFLAGS += -DT_A='"${T_A}"'
 
 # This should really go into some global WIN32 config file
 USR_CFLAGS_WIN32 += /D_WIN32_WINNT=0x501

@@ -47,109 +47,10 @@ epicsShareFunc int epicsShareAPI iocshCmd(const char *cmd);
 
 #define IS_ABS_PATH(filename) (filename[0] == OSI_PATH_SEPARATOR[0])  /* may be different for other OS ? */
 
+#include "expr.h"
 #include "require.h"
 
 int runScriptDebug=0;
-
-static int parseExpr(const char** pp, int* v);
-
-static int parseValue(const char** pp, int* v)
-{
-    int val;
-    const char *p = *pp;
-    int neg = 0;
-
-    while (isspace((unsigned char)*p)) p++;
-    if (*p == '+' || *p == '-') neg = *p++ == '-';
-    while (isspace((unsigned char)*p)) p++;
-    if (*p == '(')
-    {
-        p++;
-        if (!parseExpr(&p, &val)) return 0;
-        if (*p++ != ')') return 0;
-    }
-    else
-    {
-        char* e;
-        val = strtol(p, &e, 0);
-        if (e == p) return 0;
-        p = e;
-    }
-    if (neg) val = -val;
-    if (*p == '?')
-    {
-        p++;
-        val = (val != 0);
-    }
-    *pp = p;
-    *v = val;
-    if (runScriptDebug > 1) printf("parseValue: %d rest=\"%s\"\n", *v, p);
-    return 1;
-}
-
-static int parseExpr(const char** pp, int* v)
-{
-    const char *p = *pp;
-    const char *q;
-    int o;
-    int val;
-    int val2;
-    int status = 0;
-
-    *v = 0;
-    do {
-        if (!parseValue(&p, &val)) return status;
-        if (runScriptDebug > 1) printf("parseExp val=%d rest=%s\n", val, p);
-        q = p;
-        while (isspace((unsigned char)*q)) q++;
-        o = *q;
-        while (o == '*' || o == '/' || o == '%')
-        {
-            q++;
-            if (!parseValue(&q, &val2)) break;
-            if (o == '*') val *= val2;
-            else if (val2 == 0) val = 0;
-            else if (o == '/') val /= val2;
-            else val %= val2;
-            p = q;
-            while (isspace((unsigned char)*p)) p++;
-            o = *p;
-        }
-        status = 1;
-        *v += val;
-        *pp = p;
-        if (runScriptDebug > 1) printf("parseExpr: sum %d rest=\"%s\"\n", *v, p);
-    } while (o == '+' || o == '-');
-    return 1;
-}
-
-const char* getFormat(const char** pp)
-{
-    static char format [20];
-    const char* p = *pp;
-    unsigned int i = 1;
-    if (runScriptDebug > 1) printf ("getFormat %s\n", p);
-    if ((format[0] = *p++) == '%')
-    {
-        if (runScriptDebug > 1) printf ("getFormat0 %s\n", p);
-        while (i < sizeof(format) && strchr(" #-+0", *p))
-            format[i++] = *p++;
-        if (runScriptDebug > 1) printf ("getFormat1 %s\n", p);
-        while (i < sizeof(format) && strchr("0123456789", *p))
-            format[i++] = *p++;
-        if (runScriptDebug > 1) printf ("getFormat2 %s\n", p);
-        if (i < sizeof(format) && strchr("diouxXc", *p))
-        {
-            format[i++] = *p++;
-            format[i] = 0;
-            *pp = p;
-            if (runScriptDebug > 1) printf ("format=%s\n", format);
-            return format;
-        }
-    }
-    if (runScriptDebug > 1) printf ("no format\n");
-    return NULL;
-}
 
 int runScript(const char* filename, const char* args)
 {
@@ -175,7 +76,7 @@ int runScript(const char* filename, const char* args)
 #endif
         char*[]){ "", "environ", NULL, NULL }) != 0) goto error;
     macSuppressWarning(mac, 1);
-#if (EPICSVER<31400)
+#if (EPICSVER<31403)
     /* Have no environment macro substitution, thus load envionment explicitly */
     /* Actually, environmant macro substitution was introduced in 3.14.3 */
     for (pairs = ppGlobalEnviron; *pairs; pairs++)
@@ -299,70 +200,10 @@ int runScript(const char* filename, const char* args)
         if (*p == 0 || *p == '#') continue;
         
         /* find local variable assignments */
-        if ((x = strpbrk(p, "=(, \t\n")) != NULL && *x=='=')
+        if ((x = strpbrk(p, "=(, \t\n\r")) != NULL && *x=='=')
         {
-            const char* r;
-            char* w;
-            int val;
-
             *x++ = 0;
-            r = x;
-            w = line_raw;
-            while (*r)
-            {
-                if (runScriptDebug > 1) printf ("expr %s\n", r);
-                if (*r == '%')
-                {
-                    const char* r2 = r;
-                    const char* f;
-                    if ((f = getFormat(&r2)) && parseExpr(&r2, &val))
-                    {
-                        w += sprintf(w, f , val);
-                        r = r2;
-                    }
-                    else
-                    {
-                        if (runScriptDebug > 1) printf ("skip %c\n", *r);
-                        *w++ = *r++;
-                    }
-                    continue;
-                }
-                if (parseExpr(&r, &val))
-                {
-                    if (runScriptDebug > 1) printf ("val=%d, rest=%s\n", val, r);
-                    w += sprintf(w, "%d", val);
-                    if (runScriptDebug > 1) printf ("rest=%s\n", r);
-                }
-                else if (*r == '(' || *r == '+')
-                {
-                    if (runScriptDebug > 1) printf ("skip %c\n", *r);
-                    *w++ = *r++;
-                    continue;
-                }
-                while (1)
-                {
-                    if ((*r >= '0' && *r <= '9') || *r == '(' || *r == '%') break;
-                    if (*r == '"' || *r == '\'')
-                    {
-                        char c = *r++;
-                        if (runScriptDebug > 1) printf ("string %c\n", c);
-                        while (*r && *r != c) {
-                            *w++ = *r++;
-                        }
-                        *w = 0;
-                        if (*r) r++;
-                        if (*r == '+')
-                        {
-                            if (runScriptDebug > 1) printf ("skip %c\n", *r);
-                            *w++ = *r++;
-                        }
-                        break;
-                    }
-                    if (runScriptDebug > 1) printf ("copy %c\n", *r);
-                    if (!(*w++ = *r)) break;
-                    r++;
-                };
-            }
+            replaceExpressions(x, line_raw, line_raw_size);
             if (runScriptDebug)
                 printf("runScript: assign %s=%s\n", p, line_raw);
             macPutValue(mac, p, line_raw);
@@ -503,6 +344,7 @@ int afterInit(char* cmd, char* a1, char* a2, char* a3, char* a4, char* a5, char*
 }
 
 epicsExportAddress(int, runScriptDebug);
+epicsExportAddress(int, exprDebug);
 
 static const iocshFuncDef runScriptDef = {
     "runScript", 2, (const iocshArg *[]) {
