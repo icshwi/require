@@ -10,6 +10,8 @@ SOURCES += require.c
 DBDS    += require.dbd
 SOURCES += runScript.c
 DBDS    += runScript.dbd
+SOURCES += expr.c
+#DBDS    += expr.dbd
 
 SOURCES += dbLoadTemplate.y
 DBDS    += dbLoadTemplate.dbd
@@ -23,7 +25,7 @@ HEADERS += require.h
 USR_INCLUDES_Linux=-idirafter ${EPICS_BASE}/include 
 
 # Pass T_A to the code
-USR_CFLAGS += -DT_A=${T_A}
+USR_CFLAGS += -DT_A='"${T_A}"'
 
 # This should really go into some global WIN32 config file
 USR_CFLAGS_WIN32 += /D_WIN32_WINNT=0x501

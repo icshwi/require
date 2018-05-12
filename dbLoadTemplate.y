@@ -17,7 +17,10 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
+
+#if !defined (_WIN32)
 #include <unistd.h>
+#endif
 
 #include "macLib.h"
 #include "dbmf.h"
