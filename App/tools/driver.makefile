@@ -239,7 +239,7 @@ debug::
 MAKEVERSION = ${MAKE} -f ${USERMAKEFILE} LIBVERSION=${LIBVERSION}
 
 build install debug:: ${IGNOREFILES}
-	for VERSION in ${BUILD_EPICS_VERSIONS}; do ${MAKEVERSION} EPICSVERSION=$$VERSION $@; done
+	@+for VERSION in ${BUILD_EPICS_VERSIONS}; do ${MAKEVERSION} EPICSVERSION=$$VERSION $@; done
 
 #build: ${IGNOREFILES}
 #	${MAKE} -f ${USERMAKEFILE} LIBVERSION=${LIBVERSION} EPICSVERSION=$$DEFAULT_EPICS_VERSION
@@ -250,10 +250,10 @@ build install debug:: ${IGNOREFILES}
 
 define VERSIONRULES
 $(1): ${IGNOREFILES}
-	for VERSION in $${EPICS_VERSIONS_$(1)}; do $${MAKEVERSION} EPICSVERSION=$$$$VERSION build; done
+	@+for VERSION in $${EPICS_VERSIONS_$(1)}; do $${MAKEVERSION} EPICSVERSION=$$$$VERSION build; done
 
 %.$(1): ${IGNOREFILES}
-	for VERSION in $${EPICS_VERSIONS_$(1)}; do $${MAKEVERSION} EPICSVERSION=$$$$VERSION $${@:%.$(1)=%}; done
+	@+for VERSION in $${EPICS_VERSIONS_$(1)}; do $${MAKEVERSION} EPICSVERSION=$$$$VERSION $${@:%.$(1)=%}; done
 endef
 $(foreach v,$(sort $(basename ${INSTALLED_EPICS_VERSIONS})),$(eval $(call VERSIONRULES,$v)))
 
@@ -444,7 +444,7 @@ debug::
 
 install build::
 # Delete old build if INSTBASE has changed and module depends on other modules.
-	@for ARCH in ${CROSS_COMPILER_TARGET_ARCHS}; do \
+	@+for ARCH in ${CROSS_COMPILER_TARGET_ARCHS}; do \
 	    echo '$(realpath ${EPICS_MODULES})' | cmp -s O.${EPICSVERSION}_$$ARCH/INSTBASE || \
 	    ( grep -qs "^[^#]" O.${EPICSVERSION}_$$ARCH/*.dep && \
 	     (echo "rebuilding $$ARCH"; $(RMDIR) O.${EPICSVERSION}_$$ARCH) ) || true; \
@@ -452,8 +452,8 @@ install build::
 
 # Loop over all architectures.
 install build debug::
-	@for ARCH in ${CROSS_COMPILER_TARGET_ARCHS}; do \
-	    umask 002; ${MAKE} -f ${USERMAKEFILE} T_A=$$ARCH $@; \
+	@+for ARCH in ${CROSS_COMPILER_TARGET_ARCHS}; do \
+	    umask 002; echo MAKING ARCH $$ARCH; ${MAKE} -f ${USERMAKEFILE} T_A=$$ARCH $@; \
 	done
 
 else # T_A
