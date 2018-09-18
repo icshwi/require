@@ -52,6 +52,12 @@ epicsShareFunc int epicsShareAPI iocshCmd(const char *cmd);
 
 int runScriptDebug=0;
 
+int loadIocsh(const char* filename, const char* args)
+{
+  return runScript(filename, args);
+}
+
+
 int runScript(const char* filename, const char* args)
 {
     MAC_HANDLE *mac = NULL;
@@ -346,6 +352,17 @@ int afterInit(char* cmd, char* a1, char* a2, char* a3, char* a4, char* a5, char*
 epicsExportAddress(int, runScriptDebug);
 epicsExportAddress(int, exprDebug);
 
+static const iocshFuncDef loadIocshDef = {
+    "loadIocsh", 2, (const iocshArg *[]) {
+        &(iocshArg) { "filename", iocshArgString },
+        &(iocshArg) { "substitutions", iocshArgString },
+}};
+static void loadIocshFunc(const iocshArgBuf *args)
+{
+    loadIocsh(args[0].sval, args[1].sval);
+}
+
+
 static const iocshFuncDef runScriptDef = {
     "runScript", 2, (const iocshArg *[]) {
         &(iocshArg) { "filename", iocshArgString },
@@ -384,6 +401,7 @@ static void runScriptRegister(void)
     if (firstTime) {
         firstTime = 0;
         iocshRegister (&runScriptDef, runScriptFunc);
+	iocshRegister (&loadIocshDef, loadIocshFunc);
         iocshRegister (&afterInitDef, afterInitFunc);
     }
 }
