@@ -623,9 +623,6 @@ void registerModule(const char* module, const char* version, const char* locatio
     const char *mylocation;
     static int firstTime = 1;
 
-    char* iocshlocation = NULL;
-    const char* iocshpath="/iocsh";
-    
     if (requireDebug)
         printf("require: registerModule(%s,%s,%s)\n", module, version, location);
         
@@ -666,19 +663,11 @@ void registerModule(const char* module, const char* version, const char* locatio
         return;
     }
 
-    iocshlocation = malloc( strlen(abslocation) + strlen(iocshpath) );
-    if (iocshlocation == NULL)
-      {
-	fprintf(stderr, "require: registerModule: cannot allocate memory on iocshlocation \n");
-	return;
-      }
-
     m->next = NULL;
 
     strcpy (m->content, module);
     strcpy (m->content+lm, version);
     strcpy (m->content+lm+lv, abslocation ? abslocation : "");
-    strcpy (iocshlocation, abslocation ? strcat(abslocation, iocshpath) : "");
 
     if (addSlash) strcpy (m->content+lm+lv+ll-1, OSI_PATH_SEPARATOR);
     if (abslocation != location) free(abslocation);
@@ -693,8 +682,7 @@ void registerModule(const char* module, const char* version, const char* locatio
     if (location)
     {
         putenvprintf("%s_DIR=%s", module, m->content+lm+lv);
-	pathAdd("SCRIPT_PATH", m->content+lm+lv);
-	pathAdd("SCRIPT_PATH", iocshlocation);
+        pathAdd("SCRIPT_PATH", m->content+lm+lv);
     }
     
     /* only do registration register stuff at init */
@@ -711,7 +699,6 @@ void registerModule(const char* module, const char* version, const char* locatio
     dbLoadRecords(abslocation, argstring);
     free(argstring);
     free(abslocation);
-    free(iocshlocation);
 }
 
 #if defined (vxWorks)
