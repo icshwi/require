@@ -666,7 +666,7 @@ void registerModule(const char* module, const char* version, const char* locatio
         return;
     }
 
-    iocshlocation = malloc( strlen(abslocation) + strlen(iocshpath) );
+    iocshlocation = (char*) malloc( strlen(abslocation) + strlen(iocshpath) +  ll + addSlash );
     if (iocshlocation == NULL)
       {
 	fprintf(stderr, "require: registerModule: cannot allocate memory on iocshlocation \n");
@@ -693,7 +693,7 @@ void registerModule(const char* module, const char* version, const char* locatio
     if (location)
     {
         putenvprintf("%s_DIR=%s", module, m->content+lm+lv);
-	pathAdd("SCRIPT_PATH", m->content+lm+lv);
+	/*	pathAdd("SCRIPT_PATH", m->content+lm+lv);*/
 	pathAdd("SCRIPT_PATH", iocshlocation);
     }
     
