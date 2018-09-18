@@ -393,7 +393,7 @@ TEMPLS += ${TEMPLATES_${EPICS_BASETYPE}}
 TEMPLS += ${TEMPLATES_${EPICSVERSION}}
 export TEMPLS
 
-SCR = $(if ${SCRIPTS},$(filter-out -none-,${SCRIPTS}),$(wildcard *.cmd *.iocsh))
+SCR = $(if ${SCRIPTS},$(filter-out -none-,${SCRIPTS}),$(wildcard *.cmd))
 SCR += ${SCRIPTS_${EPICS_BASETYPE}}
 SCR += ${SCRIPTS_${EPICSVERSION}}
 export SCR
@@ -582,7 +582,7 @@ INSTALL_DBD     = ${INSTALL_REV}/dbd
 INSTALL_DB      = ${INSTALL_REV}/db
 INSTALL_CFG     = ${INSTALL_REV}/cfg
 INSTALL_DOC     = ${MODULE_LOCATION}/doc
-INSTALL_SCR     = ${INSTALL_REV}/iocsh
+INSTALL_SCR     = ${INSTALL_REV}
 
 #INSTALL_DOCUS = $(addprefix ${INSTALL_DOC}/${PRJ}/,$(notdir ${DOCU}))
 
@@ -1127,5 +1127,3 @@ endif # EPICSVERSION defined
 ##
 ## Sunday, May  6 22:10:24 CEST 2018      : add %.{hh,hpp,hxx} headers into vpath in order to install them properly
 ## 
-## Monday, September 17 14:28:56 CEST 2018 : add *.iocsh in SCR, add INSTALL_SCR/iocsh
-##

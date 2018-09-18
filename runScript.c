@@ -52,11 +52,6 @@ epicsShareFunc int epicsShareAPI iocshCmd(const char *cmd);
 
 int runScriptDebug=0;
 
-int loadIocsh(const char* filename, const char* args)
-{
-  return runScript(filename, args);
-}
-
 int runScript(const char* filename, const char* args)
 {
     MAC_HANDLE *mac = NULL;
@@ -143,12 +138,10 @@ int runScript(const char* filename, const char* args)
         const char* dirname;
         const char* end;
         char* fullname;
-        char* path = getenv("SCRIPT_PATH");
-	strcat(path,  ":./iocsh");
-	if (runScriptDebug) printf("runScript: SCRIPT_PATH %s\n", path);
+        const char* path = getenv("SCRIPT_PATH");
         int dirlen;
         
-        for (dirname = (const char*) path; dirname != NULL; dirname = end)
+        for (dirname = path; dirname != NULL; dirname = end)
         {
             end = strchr(dirname, OSI_PATH_LIST_SEPARATOR[0]);
             if (end && end[1] == OSI_PATH_SEPARATOR[0] && end[2] == OSI_PATH_SEPARATOR[0])   /* "http://..." and friends */
@@ -353,20 +346,6 @@ int afterInit(char* cmd, char* a1, char* a2, char* a3, char* a4, char* a5, char*
 epicsExportAddress(int, runScriptDebug);
 epicsExportAddress(int, exprDebug);
 
-
-
-
-static const iocshFuncDef loadIocshDef = {
-    "loadIocsh", 2, (const iocshArg *[]) {
-        &(iocshArg) { "filename", iocshArgString },
-        &(iocshArg) { "substitutions", iocshArgString },
-}};
-
-static void loadIocshFunc(const iocshArgBuf *args)
-{
-    loadIocsh(args[0].sval, args[1].sval);
-}
-
 static const iocshFuncDef runScriptDef = {
     "runScript", 2, (const iocshArg *[]) {
         &(iocshArg) { "filename", iocshArgString },
@@ -405,7 +384,6 @@ static void runScriptRegister(void)
     if (firstTime) {
         firstTime = 0;
         iocshRegister (&runScriptDef, runScriptFunc);
-	iocshRegister (&loadIocshDef, loadIocshFunc);
         iocshRegister (&afterInitDef, afterInitFunc);
     }
 }
