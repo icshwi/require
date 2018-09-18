@@ -393,7 +393,7 @@ TEMPLS += ${TEMPLATES_${EPICS_BASETYPE}}
 TEMPLS += ${TEMPLATES_${EPICSVERSION}}
 export TEMPLS
 
-SCR = $(if ${SCRIPTS},$(filter-out -none-,${SCRIPTS}),$(wildcard *.cmd))
+SCR = $(if ${SCRIPTS},$(filter-out -none-,${SCRIPTS}),$(wildcard *.cmd *.iocsh))
 SCR += ${SCRIPTS_${EPICS_BASETYPE}}
 SCR += ${SCRIPTS_${EPICSVERSION}}
 export SCR
@@ -1127,3 +1127,4 @@ endif # EPICSVERSION defined
 ##
 ## Sunday, May  6 22:10:24 CEST 2018      : add %.{hh,hpp,hxx} headers into vpath in order to install them properly
 ## 
+## Tuesday, September 18 22:57:17 CEST 2018 : add *.iocsh in SCR
