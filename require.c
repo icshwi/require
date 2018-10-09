@@ -692,6 +692,16 @@ void registerModule(const char* module, const char* version, const char* locatio
     mylocation = getenv("require_DIR");
     if (mylocation == NULL) return;
     if (asprintf(&abslocation, "%s" OSI_PATH_SEPARATOR "db" OSI_PATH_SEPARATOR "moduleversion.template", mylocation) < 0) return;
+    /* 
+       Require DB has the following four PVs: 
+       - $(REQUIRE_IOC):$(MODULE)_VER
+       - $(REQUIRE_IOC):MOD_VER
+       - $(REQUIRE_IOC):VERSIONS
+       - $(REQUIRE_IOC):MODULES
+       We reserved 30 chars for :$(MODULE)_VER, so MODULE has the maximum 24 chars.
+       And we've reserved for 30 chars for $(REQUIRE_IOC).
+       So, the whole PV and record name in moduleversion.template has 59 + 1. 
+     */
     if (asprintf(&argstring, "REQUIRE_IOC=%.30s, MODULE=%.24s, VERSION=%.39s, MODULE_COUNT=%lu, BUFFER_SIZE=%lu",
         getenv("REQUIRE_IOC"), module, version, moduleCount,
         moduleListBufferSize+maxModuleNameLength*moduleCount) < 0) return;
