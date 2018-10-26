@@ -462,14 +462,17 @@ install build debug::
 # The tricky part is to sort versions numerically. Make can't but ls -v can.
 # Only accept numerical versions (needs extended glob).
 # This is slow, thus do it only once for each EPICSVERSION.
+#
+# At ESS, we have to remove R${EPICSVERSION} from PSI one.
+#
 define ADD_OTHER_MODULE_INCLUDES
-$(eval $(1)_VERSION := $(patsubst ${EPICS_MODULES}/$(1)/%/R${EPICSVERSION}/include,%,$(firstword $(shell ls -dvr ${EPICS_MODULES}/$(1)/+([0-9]).+([0-9]).+([0-9])/R${EPICSVERSION}/include 2>/dev/null))))
+$(eval $(1)_VERSION := $(patsubst ${EPICS_MODULES}/$(1)/%/include,%,$(firstword $(shell ls -dvr ${EPICS_MODULES}/$(1)/+([0-9]).+([0-9]).+([0-9])/include 2>/dev/null))))
 export $(1)_VERSION 
-OTHER_MODULE_INCLUDES += $$(patsubst %,-I${EPICS_MODULES}/$(1)/%/R${EPICSVERSION}/include,$$($(1)_VERSION))
+OTHER_MODULE_INCLUDES += $$(patsubst %,-I${EPICS_MODULES}/$(1)/%/include,$$($(1)_VERSION))
 endef
 $(eval $(foreach m,$(filter-out $(PRJ) $(IGNORE_MODULES),$(notdir $(wildcard ${EPICS_MODULES}/*))),$(call ADD_OTHER_MODULE_INCLUDES,$m)))
 # Include path for old style modules.
-OTHER_MODULE_INCLUDES += $(addprefix -I,$(wildcard ${INSTBASE}/iocBoot/R${EPICSVERSION}/include))
+OTHER_MODULE_INCLUDES += $(addprefix -I,$(wildcard ${INSTBASE}/iocBoot/include))
 export OTHER_MODULE_INCLUDES
 
 else # T_A
