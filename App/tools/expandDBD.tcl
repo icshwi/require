@@ -12,14 +12,14 @@ set filesDone {}
 
 while {[llength $argv]} {
     switch -glob -- [lindex $argv 0] {
-        "-3*"   { set epicsversion [string range [lindex $argv 0] 1 end]}
-        "-q"    { set quiet 1 }
-        "-r"    { set recordtypes 1; set quiet 1 }
-        "-I"    { lappend seachpath [lindex $argv 1]; set argv [lreplace $argv 0 1]; continue }
-        "-I*"   { lappend seachpath [string range [lindex $argv 0] 2 end] }
-        "--"    { set argv [lreplace $argv 0 0]; break }
-        "-*"    { puts stderr "Unknown option [lindex $argv 0] ignored" }
-        default { break }
+        "-[0-9]*" { set epicsversion [string range [lindex $argv 0] 1 end]}
+        "-q"      { set quiet 1 }
+        "-r"      { set recordtypes 1; set quiet 1 }
+        "-I"      { lappend seachpath [lindex $argv 1]; set argv [lreplace $argv 0 1]; continue }
+        "-I*"     { lappend seachpath [string range [lindex $argv 0] 2 end] }
+        "--"      { set argv [lreplace $argv 0 0]; break }
+        "-*"      { puts stderr "Warning: Unknown option [lindex $argv 0] ignored" }
+        default   { break }
     }
     set argv [lreplace $argv 0 0]
 }
@@ -86,7 +86,7 @@ proc includeFile {context filename} {
     set basename [file tail $filename]
     if {[lsearch $filesDone $basename ] != -1} {
         if {!$quiet} {
-            puts stderr "Warning: skipping duplicate file $basename included from $FileName($matchInfo(handle))"
+            puts stderr "Info: skipping duplicate file $basename included from $FileName($matchInfo(handle))"
         }
         return
     }
@@ -103,7 +103,7 @@ foreach filename $argv {
     set basename [file tail $filename]
     if {[lsearch $filesDone $basename] != -1} {
         if {!$quiet} {
-            puts stderr "Warning: skipping duplicate file $basename from command line"
+            puts stderr "Info: skipping duplicate file $basename from command line"
         }
         continue
     }
