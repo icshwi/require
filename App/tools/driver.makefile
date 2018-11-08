@@ -545,11 +545,25 @@ EPICS_INCLUDES =
 
 # The tricky part is to sort versions numerically. Make can't but ls -v can.
 # Only accept numerical versions (needs extended glob).
-define ADD_FOREIGN_INCLUDES
-$(eval $(1)_VERSION := $(patsubst ${EPICS_MODULES}/$(1)/%/include,%,$(firstword $(shell ls -dvr ${EPICS_MODULES}/$(1)/+([0-9]).+([0-9]).+([0-9])/include 2>/dev/null))))
-INSTALL_INCLUDES += $$(patsubst %,-I${EPICS_MODULES}/$(1)/%/include,$$($(1)_VERSION))
+# define ADD_FOREIGN_INCLUDES
+# $(eval $(1)_VERSION := $(patsubst ${EPICS_MODULES}/$(1)/%/include,%,$(firstword $(shell ls -dvr ${EPICS_MODULES}/$(1)/+([0-9]).+([0-9]).+([0-9])/include 2>/dev/null))))
+# INSTALL_INCLUDES += $$(patsubst %,-I${EPICS_MODULES}/$(1)/%/include,$$($(1)_VERSION))
+# endef
+# $(eval $(foreach m,$(filter-out $(PRJ),$(notdir $(wildcard ${EPICS_MODULES}/*))),$(call ADD_FOREIGN_INCLUDES,$m)))
+
+define ADD_SITEMODS_INCLUDES
+$(eval $(1)_VERSION := $(patsubst ${E3_SITEMODS_PATH}/$(1)/%/include,%,$(firstword $(shell ls -dvr ${E3_SITEMODS_PATH}/$(1)/+([0-9]).+([0-9]).+([0-9])/include 2>/dev/null))))
+INSTALL_INCLUDES += $$(patsubst %,-I${E3_SITEMODS_PATH}/$(1)/%/include,$$($(1)_VERSION))
 endef
-$(eval $(foreach m,$(filter-out $(PRJ),$(notdir $(wildcard ${EPICS_MODULES}/*))),$(call ADD_FOREIGN_INCLUDES,$m)))
+$(eval $(foreach m,$(filter-out $(PRJ),$(notdir $(wildcard ${E3_SITEMODS_PATH}/*))),$(call ADD_SITEMODS_INCLUDES,$m)))
+
+define ADD_SITEAPPS_INCLUDES
+$(eval $(1)_VERSION := $(patsubst ${E3_SITEAPPS_PATH}/$(1)/%/include,%,$(firstword $(shell ls -dvr ${E3_SITEAPPS_PATH}/$(1)/+([0-9]).+([0-9]).+([0-9])/include 2>/dev/null))))
+INSTALL_INCLUDES += $$(patsubst %,-I${E3_SITEAPPS_PATH}/$(1)/%/include,$$($(1)_VERSION))
+endef
+$(eval $(foreach m,$(filter-out $(PRJ),$(notdir $(wildcard ${E3_SITEAPPS_PATH}/*))),$(call ADD_SITEAPPS_INCLUDES,$m)))
+
+
 
 ifneq ($(wildcard ${MAKEHOME}/getPrerequisites.tcl),)
 # Include path for old style modules.
@@ -1128,3 +1142,6 @@ endif # EPICSVERSION defined
 ## Sunday, May  6 22:10:24 CEST 2018      : add %.{hh,hpp,hxx} headers into vpath in order to install them properly
 ## 
 ## Tuesday, September 18 22:57:17 CEST 2018 : add *.iocsh in SCR
+##
+## Thursday, November  8 11:01:28 CET 2018 : ADD ADD_SITEMODS_INCLUDES and ADD_SITEAPPS_INCLUDES instead of ADD_FOREIGN_INCLUDES
+##
