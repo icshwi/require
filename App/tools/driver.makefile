@@ -75,7 +75,6 @@ E3_EPICS_VERSION:=$(E3_EPICS_VERSION_TEMP:base-%=%)
 E3_SITEMODS_PATH =
 E3_SITEAPPS_PATH =
 E3_SITELIBS_PATH =
-E3_SEQUENCER_NAME =
 BUILD_EPICS_VERSIONS = $(E3_EPICS_VERSION)
 ##---## 
 
@@ -758,30 +757,7 @@ DBDFILES += $(patsubst %.gt,%.dbd,$(notdir $(filter %.gt,${SRCS})))
 
 # snc location in 3.14: From latest version of module seq or fall back to globally installed snc.
 #SNC=$(lastword $(dir ${EPICS_BASE})seq/bin/$(EPICS_HOST_ARCH)/snc $(shell ls -dv ${EPICS_MODULES}/seq/$(or $(seq_VERSION),+([0-9]).+([0-9]).+([0-9]))/bin/${EPICS_HOST_ARCH}/snc 2>/dev/null))
-# E3 has all alias for all sequencer version in $(E3_SITELIBS_PATH), so we are using that variable as driver.Makefile inputs.
-# The -v option is the natural sorf of (version) numbers within text. So, From lastest version of module sequencer, we will use, in the same way the original one.
-# But we remove the global snc path.
-# Tuesday, January 30 14:02:58 CET 2018, jhlee
-#
-#
-# We also introduce the way to get SEQUENCER_VERSION, if is not, the default *.*.* version sequencers, and select the lastword.
-# Saturday, February 10 22:42:21 CET 2018, jhlee
-
-
-ifndef E3_SEQUENCER_NAME
-	SEQ_NAME=sequencer
-else
-	SEQ_NAME=$(E3_SEQUENCER_NAME)
-endif
-
-
-ifndef E3_SEQUENCER_VERSION
-	SNC_VERSION=*.*.*
-else
-	SNC_VERSION=$(E3_SEQUENCER_VERSION)
-endif
-
-SNCALL=$(shell ls  -dv $(E3_SITELIBS_PATH)/$(SEQ_NAME)_$(SNC_VERSION)_bin/$(EPICS_HOST_ARCH) 2> /dev/null)
+SNCALL=$(shell ls  -dv $(E3_SITELIBS_PATH)/sequencer_$(sequencer_VERSION)_bin/$(EPICS_HOST_ARCH) 2> /dev/null)
 SNC=$(lastword $(SNCALL))/snc
 
 
@@ -972,9 +948,7 @@ SNCFLAGS += -r
 	@echo ""
 	@echo ">> SNC building process .... "
 	@echo ">> SNC                  : $(SNC)"
-	@echo ">> SNC_VERSION          : $(SNC_VERSION)"
-	@echo ">> E3_SEQUENCER_NAME    : $(E3_SEQUENCER_NAME)"
-	@echo ">> E3_SEQUENCER_VERSION : $(E3_SEQUENCER_VERSION)"
+	@echo ">> SNC_VERSION          : $(sequencer_VERSION)"
 	@echo ">> Preprocessing $(<F)"
 	$(RM) $(*F).i
 	$(CPP) ${CPPSNCFLAGS1} $< > $(*F).i
@@ -993,9 +967,7 @@ SNCFLAGS += -r
 	@echo ""
 	@echo ">> SNC building process .... "
 	@echo ">> SNC                  : $(SNC)"
-	@echo ">> SNC_VERSION          : $(SNC_VERSION)"
-	@echo ">> E3_SEQUENCER_NAME    : $(E3_SEQUENCER_NAME)"
-	@echo ">> E3_SEQUENCER_VERSION : $(E3_SEQUENCER_VERSION)"
+	@echo ">> SNC_VERSION          : $(sequencer_VERSION)"
 	@echo ">> Preprocessing $(<F)"
 	$(RM) $(*F).i
 	$(CPP) ${CPPSNCFLAGS1} $< > $(*F).i
@@ -1136,12 +1108,13 @@ endif # EPICSVERSION defined
 ##                                          Default E3_SEQUENCER_NAME as sequencer, if it is not defined in
 ##                                          CONFIG_MODULE in each module
 ##
-## Tuesday, May  1 20:27:31 CEST 2018     : Generate a dependency file with module_name x.x.x instead of x.x
-##                                          add the exclusion for include for require.dep
+## Tuesday, May  1 20:27:31 CEST 2018       : Generate a dependency file with module_name x.x.x instead of x.x
+##                                            add the exclusion for include for require.dep
 ##
-## Sunday, May  6 22:10:24 CEST 2018      : add %.{hh,hpp,hxx} headers into vpath in order to install them properly
+## Sunday, May  6 22:10:24 CEST 2018        : add %.{hh,hpp,hxx} headers into vpath in order to install them properly
 ## 
 ## Tuesday, September 18 22:57:17 CEST 2018 : add *.iocsh in SCR
 ##
-## Thursday, November  8 11:01:28 CET 2018 : ADD ADD_SITEMODS_INCLUDES and ADD_SITEAPPS_INCLUDES instead of ADD_FOREIGN_INCLUDES
+## Thursday, November  8 11:01:28 CET 2018  : Add    ADD_SITEMODS_INCLUDES and ADD_SITEAPPS_INCLUDES instead of ADD_FOREIGN_INCLUDES
+##                                            Remove the E3_SEQUENCER_*, use sequencer_VERSION instaed.
 ##
