@@ -1073,7 +1073,7 @@ ${DEPFILE}: ${LIBOBJS} $(USERMAKEFILE)
 	$(RM) $@
 	@echo "# Generated file. Do not edit." > $@
 # Check dependencies on other module headers.
-	cat *.d 2>/dev/null | sed 's/ /\n/g' | sed -n 's%${EPICS_MODULES}/*\([^/]*\)/\([0-9]*\.[0-9]*\.[0-9]*\)/.*%\1 \2%p;s%$(EPICS_MODULES)/*\([^/]*\)/\([^/]*\)/.*%\1 \2%p'| grep -v "include" | sort -u >> $@
+	cat *.d 2>/dev/null | sed 's/ /\n/g' | sed -n 's%$(E3_SITEMODS_PATH)/*\([^/]*\)/\([0-9]*\.[0-9]*\.[0-9]*\)/.*%\1 \2%p;s%$(E3_SITEMODS_PATH)/*\([^/]*\)/\([^/]*\)/.*%\1 \2%p;s%$(E3_SITEAPPS_PATH)/*\([^/]*\)/\([0-9]*\.[0-9]*\.[0-9]*\)/.*%\1 \2%p;s%$(E3_SITEAPPS_PATH)/*\([^/]*\)/\([^/]*\)/.*%\1 \2%p;s%$(EPICS_MODULES)/*\([^/]*\)/\([0-9]*\.[0-9]*\.[0-9]*\)/.*%\1 \2%p;s%$(EPICS_MODULES)/*\([^/]*\)/\([^/]*\)/.*%\1 \2%p'| grep -v "include" | sort -u >> $@
 ifneq ($(strip ${REQ}),)
 # Manully added dependencies: ${REQ}
 	@$(foreach m,${REQ},echo "$m $(or ${$m_VERSION},$(and $(wildcard ${EPICS_MODULES}/$m),$(error REQUIRED module $m has no numbered version. Set $m_VERSION)),$(warning REQUIRED module $m not found for ${T_A}.))" >> $@;)
@@ -1117,4 +1117,6 @@ endif # EPICSVERSION defined
 ##
 ## Thursday, November  8 11:01:28 CET 2018  : Add    ADD_SITEMODS_INCLUDES and ADD_SITEAPPS_INCLUDES instead of ADD_FOREIGN_INCLUDES
 ##                                            Remove the E3_SEQUENCER_*, use sequencer_VERSION instaed.
+##
+## Thursday, March  7 00:11:50 CET 2019     : Add E3_SITEMODS_PATH, E3_SITEAPPS_PATH in the dep file generation.
 ##
