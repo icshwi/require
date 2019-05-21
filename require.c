@@ -1148,10 +1148,20 @@ int require(const char* module, const char* version, const char* args)
             *p = 0;
         }
     }
-    else
-        versionstr = "";
-    if (requireDebug)
-        printf("require: versionstr = \"%s\"\n", versionstr);
+    else {
+      printf("require : require %s, VERSION : VERSION is missing.\n", module);
+      /* require failed in startup script before iocInit */
+      fprintf(stderr, "Please specify VERSION, aborting startup script.\n");
+      #ifdef vxWorks
+      shellScriptAbort();
+      #else
+      epicsExit(1);
+      #endif
+      return -1;
+    }
+    if (requireDebug) {
+      printf("require: versionstr = \"%s\"\n", versionstr);
+    }
 
     status = require_priv(module, version, args, versionstr);
 
