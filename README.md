@@ -8,8 +8,17 @@ The following files are touched:
 
 And ESS doesn't use iocsh, we have the indepdent iocsh.bash, which is in https://github.com/icshwi/e3-require
 
+```
+require "<module>" , "<version>"
+ ioc shell function
+ Loads a module library and its dbd file (if not yet done).
 
+The two arguments "<module>" and "<version>" are mandatory.
+ "<version>" may be:
+* full version number,    e.g. "1.2.3"   -- loads exact match
+* test version,           e.g. "zimoch"  -- loads exact match
 
+```
 
 # Original README
 
