@@ -757,7 +757,7 @@ DBDFILES += $(patsubst %.gt,%.dbd,$(notdir $(filter %.gt,${SRCS})))
 
 # snc location in 3.14: From latest version of module seq or fall back to globally installed snc.
 #SNC=$(lastword $(dir ${EPICS_BASE})seq/bin/$(EPICS_HOST_ARCH)/snc $(shell ls -dv ${EPICS_MODULES}/seq/$(or $(seq_VERSION),+([0-9]).+([0-9]).+([0-9]))/bin/${EPICS_HOST_ARCH}/snc 2>/dev/null))
-SNCALL=$(shell ls  -dv $(E3_SITELIBS_PATH)/sequencer_$(sequencer_VERSION)_bin/$(EPICS_HOST_ARCH) 2> /dev/null)
+SNCALL=$(shell ls  -dv $(E3_SITEMODS_PATH)/sequencer/$(sequencer_VERSION)/bin/$(EPICS_HOST_ARCH) 2> /dev/null)
 SNC=$(lastword $(SNCALL))/snc
 
 
@@ -1120,3 +1120,4 @@ endif # EPICSVERSION defined
 ##
 ## Thursday, March  7 00:11:50 CET 2019     : Add E3_SITEMODS_PATH, E3_SITEAPPS_PATH in the dep file generation.
 ##
+## Monday, September  9 15:25:53 CEST 2019  : Revert E3_SITEMODS_PATH from E3_SITELIBS_PATH in the snc path
