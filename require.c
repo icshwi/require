@@ -927,146 +927,43 @@ int libversionShow(const char* outfile)
 #define TESTVERS 2
 #define HIGHER 3
 
+/* We remove all possible combinations to load that modules */
+/* Only the exact match version can be loaded               */
+
 static int compareVersions(const char* found, const char* request)
 {
-    int found_major, found_minor=0, found_patch=0, found_parts = 0;
-    int req_major, req_minor, req_patch, req_parts;
-    const char* found_extra;
-    const char* req_extra;
-    int n;
-    
-    if (requireDebug)
-        printf("require: compareVersions(found=%s, request=%s)\n", found, request);
+  if (requireDebug)
+    printf("require: compareVersions(found=%s, request=%s)\n", found, request);
         
-    if (found == NULL || found[0] == 0)                /* no version found: any requested? */
+  if (found == NULL || found[0] == 0)                /* no version found: any requested? */
     {
-        if (request == NULL || request[0] == 0)
+      if (request == NULL || request[0] == 0)
         {
-            if (requireDebug)
-                printf("require: compareVersions: EXACT both empty\n");
-            return EXACT;
+	  if (requireDebug)
+	    printf("require: compareVersions: EXACT both empty\n");
+	  return MISMATCH;
         }
-        else
+      else
         {
-            if (requireDebug)
-                printf("require: compareVersions: MISMATCH version requested, empty version found\n");
-            return MISMATCH;
+	  if (requireDebug)
+	    printf("require: compareVersions: MISMATCH version requested, empty version found\n");
+	  return MISMATCH;
         }
     }
-    n = 0;
-    found_parts = sscanf(found, "%d%n.%d%n.%d%n", &found_major, &n, &found_minor, &n, &found_patch, &n);
-    found_extra = found + n;
-    if (request == NULL || request[0] == 0)            /* no particular version request: match anything */
+    
+  if (request == NULL || request[0] == 0)            /* no particular version request: MISMATCH */
     {
-        if (found_parts == 0 || found_extra[0] != 0)
-        {
-            if (requireDebug)
-                printf("require: compareVersions: TESTVERS nothing requested, test version found\n");
-            return TESTVERS;
-        }
-        else
-        {
-            if (requireDebug)
-                printf("require: compareVersions: MATCH no version requested, numeric version found\n");
-            return MATCH;
-        }
+      return MISMATCH;
     }
 
-    if (strcmp(found, request) == 0)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MATCH exactly\n");
-        return EXACT;
-    }
-
-    /* Numerical version compare. Format is major.minor.patch
-       Numerical requests must have exact match in major and
-       backward-compatible number in minor and patch
-    */
-    n = 0;
-    req_parts = sscanf(request, "%d%n.%d%n.%d%n", &req_major, &n, &req_minor, &n, &req_patch, &n);
-    req_extra = request + n;
-    if (req_parts == 0 || (req_extra[0] != 0 && strcmp(req_extra, "+") != 0))
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MISMATCH test version requested, different version found\n");
-        return MISMATCH;
-    }
-    if (found_parts == 0 || (found_extra[0] != 0 && strcmp(found_extra, "+") != 0))
-    {
-        if (requireDebug)
-            printf("require: compareVersions: TESTVERS numeric requested, test version found");
-        if (req_extra[0] == '+')
-            return TESTVERS;
-        else
-            return MISMATCH;
-    }
-    if (found_major < req_major)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MISMATCH too low major number\n");
-        return MISMATCH;
-    }
-    if (found_major > req_major)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: HIGHER major number\n");
-        return HIGHER;
-    }
-    if (req_parts == 1)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MATCH only major number requested\n");
-        return MATCH;
-    }
-    if (found_minor < req_minor)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MISMATCH minor number too low\n");
-        return MISMATCH;
-    }
-    if (found_minor > req_minor)                        /* minor larger than required */
-    {
-        if (req_extra[0] == '+')
-        {
-            if (requireDebug)
-                printf("require: compareVersions: MATCH minor number higher than requested with +\n");
-            return MATCH;
-        }
-        else
-        {
-            if (requireDebug)
-                printf("require: compareVersions: HIGHER minor number\n");
-            return HIGHER;
-        }
-    }
-    if (req_parts == 2)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MATCH only major.minor number requested\n");
-        return MATCH;
-    }
-    if (found_patch < req_patch)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MISMATCH patch level too low\n");
-        return MISMATCH;
-    }
-    if (found_patch == req_patch)
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MATCH patch level matches exactly requested\n");
-        return MATCH;
-    }
-    if (req_extra[0] == '+')
-    {
-        if (requireDebug)
-            printf("require: compareVersions: MATCH patch level higher than requested with +\n");
-        return MATCH;
-    }
-    if (requireDebug)
-        printf("require: compareVersions: HIGHER patch level\n");
-    return HIGHER; 
+  if (strcmp(found, request) == 0) {
+      if (requireDebug)
+	printf("require: compareVersions: MATCH exactly\n");
+      return EXACT;
+  }
+  else {
+    return MISMATCH;
+  }
 }
 
 /* require (module)
@@ -1138,16 +1035,17 @@ int require(const char* module, const char* version, const char* args)
     {
         /* needed for old style only: */
         if (asprintf(&versionstr, "-%s", version) < 0) return errno;
-        if (isdigit((unsigned char)version[0]) && version[strlen(version)-1] == '+')
-        {
-            /*
-                user may give a minimal version (e.g. "1.2.4+")
-                load highest matching version (here "1.2") and check later
-            */
-            char* p = strrchr(versionstr, '.');
-            if (p == NULL) p = versionstr;
-            *p = 0;
-        }
+	/* Disable completely the following logic */
+        /* if (isdigit((unsigned char)version[0]) && version[strlen(version)-1] == '+') */
+        /* { */
+        /*     /\* */
+        /*         user may give a minimal version (e.g. "1.2.4+") */
+        /*         load highest matching version (here "1.2") and check later */
+        /*     *\/ */
+        /*     char* p = strrchr(versionstr, '.'); */
+        /*     if (p == NULL) p = versionstr; */
+        /*     *p = 0; */
+        /* } */
     }
     else {
       printf("require : require %s, VERSION : VERSION is missing.\n", module);
