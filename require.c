@@ -187,6 +187,22 @@ int requireDebug;
         #define EXT ".so"
     #endif
 
+#elif defined(__APPLE__)
+/* defined(__unix__) doesn't exist anymore in OSX */
+
+    #ifndef OS_CLASS
+       #define OS_CLASS "Darwin"
+    #endif
+    #include <dlfcn.h>
+    #include <limits.h>
+
+    #define HMODULE void *
+
+    #define getAddress(module, name) dlsym(module, name)
+    #define PREFIX "lib"
+    #define INFIX
+    #define EXT ".dylib"
+
 #elif defined (_WIN32)
 
     #ifndef OS_CLASS
@@ -318,6 +334,13 @@ static HMODULE loadlib(const char* libname)
         fprintf (stderr, "Loading %s library failed: %s\n",
             libname, dlerror());
     }
+#elif defined (__APPLE__)
+    if ((libhandle = dlopen(libname, RTLD_NOW|RTLD_GLOBAL)) == NULL)
+    {
+        fprintf (stderr, "Loading %s library failed: %s\n",
+            libname, dlerror());
+    } 
+
 #elif defined (_WIN32)
     if ((libhandle = LoadLibrary(libname)) == NULL)
     {

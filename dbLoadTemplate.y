@@ -468,9 +468,12 @@ static const iocshFuncDef dbLoadTemplateDef = {
 }};
 
 #ifdef __GNUC__
+/* clang doesn't support alias in darwin, force to use the original dbLoadTemplate instead of require's one */
+#ifndef __APPLE__
 /* Without this I always get the original dbLoadTemplate linked instead of my version */
 int __dbLoadTemplate(const char *sub_file, const char *cmd_collect, const char *path) __attribute__ ((alias ("dbLoadTemplate")));
 #define dbLoadTemplate __dbLoadTemplate
+#endif
 #endif
 
 static void dbLoadTemplateFunc(const iocshArgBuf *args)
